@@ -1,0 +1,970 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace TG_LP1
+{
+    // =====================================================
+    // EXCEÇÕES
+    // =====================================================
+    public class EntidadeNaoEncontradaException : Exception
+    {
+        public EntidadeNaoEncontradaException(string msg) : base(msg) { }
+    }
+
+    public class DoenteInternadoException : Exception
+    {
+        public DoenteInternadoException(string msg) : base(msg) { }
+    }
+
+    public class UnidadeComDoentesException : Exception
+    {
+        public UnidadeComDoentesException(string msg) : base(msg) { }
+    }
+
+    // =====================================================
+    // ABSTRAÇÃO: Pessoa
+    // =====================================================
+    public abstract class Pessoa
+    {
+        public string Nome { get; protected set; }
+        public int Idade { get; protected set; }
+
+        protected Pessoa(string nome, int idade)
+        {
+            Nome = nome;
+            Idade = idade;
+        }
+    }
+
+    // =====================================================
+    // ENTIDADES PRINCIPAIS
+    // =====================================================
+    public class Visitante
+    {
+        public string Nome { get; private set; }
+        public string Relacao { get; private set; }
+
+        public Visitante(string nome, string relacao)
+        {
+            Nome = nome;
+            Relacao = relacao;
+        }
+    }
+
+    public class Doente : Pessoa
+    {
+        // Identificadores / chave simplificada
+        public int Numero { get; private set; }
+        public string NIF { get; private set; }
+        public string TipologiaNecessaria { get; private set; } // "UC","UMDR","ULDM","EDCCI"
+        public string OrigemReferencia { get; private set; }
+        public string FamiliaDistrito { get; private set; }
+        public string TipoDoenca { get; private set; }
+        private List<Visitante> autorizados = new List<Visitante>();
+
+        public IReadOnlyList<Visitante> Autorizados => autorizados.AsReadOnly();
+
+        public Doente(int numero, string nome, int idade, string nif, string tipologia, string origem, string familiaDistrito, string tipoDoenca)
+            : base(nome, idade)
+        {
+            Numero = numero;
+            NIF = nif;
+            TipologiaNecessaria = tipologia;
+            OrigemReferencia = origem;
+            FamiliaDistrito = familiaDistrito;
+            TipoDoenca = tipoDoenca;
+        }
+
+        public void AutorizarVisitante(string nome, string relacao)
+        {
+            if (string.IsNullOrWhiteSpace(nome)) throw new ArgumentException("Nome do visitante inválido.");
+            if (!autorizados.Any(v => v.Nome == nome))
+            {
+                autorizados.Add(new Visitante(nome, relacao));
+            }
+        }
+
+        public void RevogarVisitante(string nome)
+        {
+            autorizados.RemoveAll(v => v.Nome == nome);
+        }
+
+        public void AtualizarDados(string nome, int idade, string familiaDistrito, string tipoDoenca)
+        {
+            if (!string.IsNullOrWhiteSpace(nome)) Nome = nome;
+            if (idade > 0) Idade = idade;
+            if (!string.IsNullOrWhiteSpace(familiaDistrito)) FamiliaDistrito = familiaDistrito;
+            if (!string.IsNullOrWhiteSpace(tipoDoenca)) TipoDoenca = tipoDoenca;
+        }
+
+        public void Mostrar()
+        {
+            Console.WriteLine($"Nº:{Numero} | Nome:{Nome} | Idade:{Idade} | NIF:{NIF} | Tipologia:{TipologiaNecessaria} | Doença:{TipoDoenca} | DistritoFam:{FamiliaDistrito}");
+        }
+    }
+
+    public class Cama
+    {
+        public int Numero { get; private set; }
+        public bool Ocupada { get; private set; }
+        public Doente DoenteAtual { get; private set; }
+
+        public Cama(int numero)
+        {
+            Numero = numero;
+            Ocupada = false;
+        }
+
+        public void Ocupar(Doente d)
+        {
+            if (Ocupada) throw new Exception("Cama já ocupada.");
+            DoenteAtual = d;
+            Ocupada = true;
+        }
+
+        public void Libertar()
+        {
+            DoenteAtual = null;
+            Ocupada = false;
+        }
+    }
+
+    public abstract class Unidade
+    {
+        public string Nome { get; protected set; }
+        public string Distrito { get; protected set; }
+        public string Zona { get; protected set; } // "Norte","Centro","Sul"
+        protected List<Cama> Camas;
+
+        protected Unidade(string nome, string distrito, string zona, int totalCamas)
+        {
+            Nome = nome;
+            Distrito = distrito;
+            Zona = zona;
+            Camas = new List<Cama>();
+            for (int i = 1; i <= totalCamas; i++)
+            {
+                Camas.Add(new Cama(i));
+            }
+        }
+
+        public abstract string GetTipologia();
+
+        public bool TemCamaDisponivel()
+        {
+            return Camas.Any(c => !c.Ocupada);
+        }
+
+        public int AdmitirDoente(Doente d)
+        {
+            Cama cama = Camas.FirstOrDefault(c => !c.Ocupada);
+            if (cama == null) throw new Exception("Sem camas livres.");
+            cama.Ocupar(d);
+            return cama.Numero;
+        }
+
+        public int? LibertarCamaDoente(string nif)
+        {
+            Cama c = Camas.FirstOrDefault(x => x.Ocupada && x.DoenteAtual.NIF == nif);
+            if (c == null) return null;
+            int num = c.Numero;
+            c.Libertar();
+            return num;
+        }
+
+        public bool ContemDoente(string nif)
+        {
+            return Camas.Any(c => c.Ocupada && c.DoenteAtual.NIF == nif);
+        }
+
+        public IEnumerable<Doente> ConsultarDoentes()
+        {
+            foreach (Cama c in Camas)
+            {
+                if (c.Ocupada) yield return c.DoenteAtual;
+            }
+        }
+
+        public int CamasDisponiveis()
+        {
+            return Camas.Count(c => !c.Ocupada);
+        }
+    }
+
+    public class UC : Unidade
+    {
+        public UC(string nome, string distrito, string zona, int camas) : base(nome, distrito, zona, camas) { }
+        public override string GetTipologia() { return "UC"; }
+    }
+
+    public class UMDR : Unidade
+    {
+        public UMDR(string nome, string distrito, string zona, int camas) : base(nome, distrito, zona, camas) { }
+        public override string GetTipologia() { return "UMDR"; }
+    }
+
+    public class ULDM : Unidade
+    {
+        public ULDM(string nome, string distrito, string zona, int camas) : base(nome, distrito, zona, camas) { }
+        public override string GetTipologia() { return "ULDM"; }
+    }
+
+    public class EDCCI : Unidade
+    {
+        public EDCCI(string nome, string distrito, string zona) : base(nome, distrito, zona, 0) { }
+        public override string GetTipologia() { return "EDCCI"; }
+
+        // equipa domiciliária não usa camas; regista atendimentos internamente se necessário
+    }
+
+    // =====================================================
+    // INTERFACES (IGestao genérica)
+    // =====================================================
+    public interface IGestao<T>
+    {
+        void Inserir(T item);
+        void Atualizar(Func<T, bool> predicate, Action<T> atualizador);
+        void Remover(Func<T, bool> predicate);
+        IEnumerable<T> Consultar();
+        T Obter(Func<T, bool> predicate);
+    }
+
+    // =====================================================
+    // GESTAO CENTRAL (GestaoDados) - encapsula listas e operações CRUD
+    // =====================================================
+    public static class GestaoDados
+    {
+        // arrays / listas
+        public static readonly string[] Zonas = new string[] { "Norte", "Centro", "Sul" };
+
+        private static readonly List<Doente> doentes = new List<Doente>();
+        private static readonly List<Unidade> unidades = new List<Unidade>();
+        private static readonly List<string> tipologias = new List<string>() { "UC", "UMDR", "ULDM", "EDCCI" };
+        private static int proximoNumeroDoente = 1;
+
+        // Exposição controlada (somente leitura)
+        public static IReadOnlyList<string> Tipologias => tipologias.AsReadOnly();
+        public static IEnumerable<Doente> ObterDoentes() { return doentes.AsReadOnly(); }
+        public static IEnumerable<Unidade> ObterUnidades() { return unidades.AsReadOnly(); }
+
+        // =========================
+        // DOENTES CRUD
+        // =========================
+        public static Doente CriarDoente(string nome, int idade, string nif, string tipologia, string origem, string familiaDistrito, string tipoDoenca)
+        {
+            if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF obrigatório.");
+            if (doentes.Any(x => x.NIF == nif)) throw new Exception("NIF já registado.");
+
+            Doente d = new Doente(proximoNumeroDoente, nome, idade, nif, tipologia, origem, familiaDistrito, tipoDoenca);
+            proximoNumeroDoente++;
+            doentes.Add(d);
+            return d;
+        }
+
+        public static Doente ObterDoentePorNIF(string nif)
+        {
+            return doentes.FirstOrDefault(d => d.NIF == nif);
+        }
+
+        public static void AtualizarDoente(string nif, Action<Doente> atualizador)
+        {
+            Doente d = ObterDoentePorNIF(nif);
+            if (d == null) throw new EntidadeNaoEncontradaException("Doente não encontrado.");
+            atualizador(d);
+        }
+
+        public static void RemoverDoente(string nif)
+        {
+            Doente d = ObterDoentePorNIF(nif);
+            if (d == null) throw new EntidadeNaoEncontradaException("Doente não encontrado.");
+
+            Unidade u = unidades.FirstOrDefault(x => x.ContemDoente(nif));
+            if (u != null) throw new DoenteInternadoException("Doente internado. Fazer alta antes de remover.");
+
+            doentes.RemoveAll(x => x.NIF == nif);
+        }
+
+        // =========================
+        // UNIDADES CRUD
+        // =========================
+        public static void InserirUnidade(Unidade u)
+        {
+            if (u == null) throw new ArgumentNullException(nameof(u));
+            if (unidades.Any(x => x.Nome == u.Nome)) throw new Exception("Unidade já existente.");
+            unidades.Add(u);
+        }
+
+        public static Unidade ObterUnidadePorNome(string nome)
+        {
+            return unidades.FirstOrDefault(u => u.Nome == nome);
+        }
+
+        public static void AtualizarUnidade(string nome, Action<Unidade> atualizador)
+        {
+            Unidade u = ObterUnidadePorNome(nome);
+            if (u == null) throw new EntidadeNaoEncontradaException("Unidade não encontrada.");
+            atualizador(u);
+        }
+
+        public static void RemoverUnidade(string nome)
+        {
+            Unidade u = ObterUnidadePorNome(nome);
+            if (u == null) throw new EntidadeNaoEncontradaException("Unidade não encontrada.");
+            if (u.ConsultarDoentes().Any()) throw new UnidadeComDoentesException("Unidade tem doentes internados.");
+            unidades.RemoveAll(x => x.Nome == nome);
+        }
+
+        // =========================
+        // TIPOLOGIAS
+        // =========================
+        public static void InserirTipologia(string t)
+        {
+            if (string.IsNullOrWhiteSpace(t)) throw new ArgumentException("Tipologia inválida.");
+            if (tipologias.Contains(t)) throw new Exception("Tipologia já existe.");
+            tipologias.Add(t);
+        }
+
+        public static void RemoverTipologia(string t)
+        {
+            if (!tipologias.Contains(t)) throw new EntidadeNaoEncontradaException("Tipologia não encontrada.");
+            tipologias.RemoveAll(x => x == t);
+        }
+    }
+
+    // =====================================================
+    // MANAGERS (implementam IGestao<T>) - demonstram interfaces e polimorfismo
+    // =====================================================
+    public class GestorDoentes : IGestao<Doente>
+    {
+        public void Inserir(Doente item)
+        {
+            if (item == null) throw new ArgumentNullException(nameof(item));
+            // usa GestaoDados para persistir
+            GestaoDados.CriarDoente(item.Nome, item.Idade, item.NIF, item.TipologiaNecessaria, item.OrigemReferencia, item.FamiliaDistrito, item.TipoDoenca);
+        }
+
+        public void Atualizar(Func<Doente, bool> predicate, Action<Doente> atualizador)
+        {
+            Doente d = GestaoDados.ObterDoentes().FirstOrDefault(predicate);
+            if (d == null) throw new EntidadeNaoEncontradaException("Doente não encontrado.");
+            atualizador(d);
+        }
+
+        public void Remover(Func<Doente, bool> predicate)
+        {
+            Doente d = GestaoDados.ObterDoentes().FirstOrDefault(predicate);
+            if (d == null) throw new EntidadeNaoEncontradaException("Doente não encontrado.");
+            GestaoDados.RemoverDoente(d.NIF);
+        }
+
+        public IEnumerable<Doente> Consultar()
+        {
+            return GestaoDados.ObterDoentes();
+        }
+
+        public Doente Obter(Func<Doente, bool> predicate)
+        {
+            return GestaoDados.ObterDoentes().FirstOrDefault(predicate);
+        }
+    }
+
+    public class GestorUnidades : IGestao<Unidade>
+    {
+        public void Inserir(Unidade item)
+        {
+            GestaoDados.InserirUnidade(item);
+        }
+
+        public void Atualizar(Func<Unidade, bool> predicate, Action<Unidade> atualizador)
+        {
+            Unidade u = GestaoDados.ObterUnidades().FirstOrDefault(predicate);
+            if (u == null) throw new EntidadeNaoEncontradaException("Unidade não encontrada.");
+            atualizador(u);
+        }
+
+        public void Remover(Func<Unidade, bool> predicate)
+        {
+            Unidade u = GestaoDados.ObterUnidades().FirstOrDefault(predicate);
+            if (u == null) throw new EntidadeNaoEncontradaException("Unidade não encontrada.");
+            GestaoDados.RemoverUnidade(u.Nome);
+        }
+
+        public IEnumerable<Unidade> Consultar()
+        {
+            return GestaoDados.ObterUnidades();
+        }
+
+        public Unidade Obter(Func<Unidade, bool> predicate)
+        {
+            return GestaoDados.ObterUnidades().FirstOrDefault(predicate);
+        }
+    }
+
+    // =====================================================
+    // Compatibilidade com o menu existente:
+    // Mensagem simples para abrir o menu de gestão de entidades já implementado
+    // =====================================================
+    public static class GestaoEntidades
+    {
+        public static void MostrarMenu()
+        {
+            int opcao;
+            do
+            {
+                Console.Clear();
+                Console.WriteLine("=== Gestão de Entidades (CRUD) ===");
+                Console.WriteLine("1 - Doentes");
+                Console.WriteLine("2 - Unidades");
+                Console.WriteLine("3 - Tipologias");
+                Console.WriteLine("0 - Voltar");
+                Console.Write("\nEscolha uma opção: ");
+
+                if (!int.TryParse(Console.ReadLine(), out opcao))
+                {
+                    Console.WriteLine("Opção inválida.");
+                    Console.ReadKey();
+                    continue;
+                }
+
+                switch (opcao)
+                {
+                    case 1:
+                        MenuDoentes();
+                        break;
+                    case 2:
+                        MenuUnidades();
+                        break;
+                    case 3:
+                        MenuTipologias();
+                        break;
+                    case 0:
+                        break;
+                    default:
+                        Console.WriteLine("Opção inválida.");
+                        Console.ReadKey();
+                        break;
+                }
+
+            } while (opcao != 0);
+        }
+
+        // ---------------------------
+        // Menu Doentes
+        // ---------------------------
+        private static void MenuDoentes()
+        {
+            int opcao;
+            do
+            {
+                Console.Clear();
+                Console.WriteLine("=== Gestão de Doentes ===");
+                Console.WriteLine("1 - Inserir");
+                Console.WriteLine("2 - Atualizar");
+                Console.WriteLine("3 - Consultar");
+                Console.WriteLine("4 - Eliminar");
+                Console.WriteLine("0 - Sair");
+                Console.Write("\nEscolha uma opção: ");
+
+                if (!int.TryParse(Console.ReadLine(), out opcao))
+                {
+                    Console.WriteLine("Opção inválida.");
+                    Console.ReadKey();
+                    continue;
+                }
+
+                try
+                {
+                    switch (opcao)
+                    {
+                        case 1:
+                            InserirDoente();
+                            break;
+                        case 2:
+                            AtualizarDoente();
+                            break;
+                        case 3:
+                            ConsultarDoentes();
+                            break;
+                        case 4:
+                            EliminarDoente();
+                            break;
+                        case 0:
+                            break;
+                        default:
+                            Console.WriteLine("Opção inválida.");
+                            Console.ReadKey();
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Erro: {ex.Message}");
+                    Console.ReadKey();
+                }
+
+            } while (opcao != 0);
+        }
+
+        private static void InserirDoente()
+        {
+            Console.Clear();
+            Console.WriteLine("=== Inserir Doente ===");
+            Console.Write("Nome: ");
+            string nome = Console.ReadLine();
+            Console.Write("Idade: ");
+            int idade = LerInt();
+            Console.Write("NIF: ");
+            string nif = Console.ReadLine();
+
+            Console.WriteLine("Tipologias disponíveis:");
+            for (int i = 0; i < GestaoDados.Tipologias.Count; i++)
+            {
+                Console.WriteLine($"{i + 1} - {GestaoDados.Tipologias[i]}");
+            }
+            Console.Write("Escolha tipologia (número): ");
+            int idx = LerInt();
+            string tipologia = (idx >= 1 && idx <= GestaoDados.Tipologias.Count) ? GestaoDados.Tipologias[idx - 1] : GestaoDados.Tipologias.First();
+
+            Console.Write("Zona (Norte/Centro/Sul): ");
+            string origem = Console.ReadLine();
+            Console.Write("Distrito da família: ");
+            string familia = Console.ReadLine();
+            Console.Write("Tipo de doença: ");
+            string tipoDoenca = Console.ReadLine();
+
+            GestaoDados.CriarDoente(nome, idade, nif, tipologia, origem, familia, tipoDoenca);
+            Console.WriteLine("Doente inserido com sucesso.");
+            Console.ReadKey();
+        }
+
+        private static void AtualizarDoente()
+        {
+            Console.Clear();
+            Console.WriteLine("=== Atualizar Doente ===");
+            Console.Write("NIF do doente: ");
+            string nif = Console.ReadLine();
+            Doente d = GestaoDados.ObterDoentes().FirstOrDefault(x => x.NIF == nif);
+            if (d == null)
+            {
+                Console.WriteLine("Doente não encontrado.");
+                Console.ReadKey();
+                return;
+            }
+
+            Console.WriteLine("Deixe em branco para manter o valor atual.");
+            Console.Write($"Nome (atual: {d.Nome}): ");
+            string nome = Console.ReadLine();
+            Console.Write($"Idade (atual: {d.Idade}): ");
+            int idade = LerIntAllowEmpty(d.Idade);
+            Console.Write($"Distrito família (atual: {d.FamiliaDistrito}): ");
+            string familia = Console.ReadLine();
+            Console.Write($"Tipo de doença (atual: {d.TipoDoenca}): ");
+            string tipoDoenca = Console.ReadLine();
+
+            GestaoDados.AtualizarDoente(nif, doente => doente.AtualizarDados(nome, idade, familia, tipoDoenca));
+            Console.WriteLine("Doente atualizado.");
+            Console.ReadKey();
+        }
+
+        private static void ConsultarDoentes()
+        {
+            Console.Clear();
+            Console.WriteLine("=== Lista de Doentes ===");
+            var lista = GestaoDados.ObterDoentes().ToList();
+            if (!lista.Any())
+            {
+                Console.WriteLine("Nenhum doente registado.");
+            }
+            else
+            {
+                foreach (var d in lista)
+                {
+                    d.Mostrar();
+                }
+            }
+            Console.ReadKey();
+        }
+
+        private static void EliminarDoente()
+        {
+            Console.Clear();
+            Console.WriteLine("=== Eliminar Doente ===");
+            Console.Write("NIF do doente: ");
+            string nif = Console.ReadLine();
+            try
+            {
+                GestaoDados.RemoverDoente(nif);
+                Console.WriteLine("Doente removido.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro: {ex.Message}");
+            }
+            Console.ReadKey();
+        }
+
+        // ---------------------------
+        // Menu Unidades
+        // ---------------------------
+        private static void MenuUnidades()
+        {
+            int opcao;
+            do
+            {
+                Console.Clear();
+                Console.WriteLine("=== Gestão de Unidades ===");
+                Console.WriteLine("1 - Inserir");
+                Console.WriteLine("2 - Atualizar");
+                Console.WriteLine("3 - Consultar");
+                Console.WriteLine("4 - Eliminar");
+                Console.WriteLine("0 - Sair");
+                Console.Write("\nEscolha uma opção: ");
+
+                if (!int.TryParse(Console.ReadLine(), out opcao))
+                {
+                    Console.WriteLine("Opção inválida.");
+                    Console.ReadKey();
+                    continue;
+                }
+
+                try
+                {
+                    switch (opcao)
+                    {
+                        case 1:
+                            InserirUnidade();
+                            break;
+                        case 2:
+                            AtualizarUnidade();
+                            break;
+                        case 3:
+                            ConsultarUnidades();
+                            break;
+                        case 4:
+                            EliminarUnidade();
+                            break;
+                        case 0:
+                            break;
+                        default:
+                            Console.WriteLine("Opção inválida.");
+                            Console.ReadKey();
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Erro: {ex.Message}");
+                    Console.ReadKey();
+                }
+
+            } while (opcao != 0);
+        }
+
+        private static void InserirUnidade()
+        {
+            Console.Clear();
+            Console.WriteLine("=== Inserir Unidade ===");
+            Console.Write("Nome: ");
+            string nome = Console.ReadLine();
+            Console.Write("Distrito: ");
+            string distrito = Console.ReadLine();
+
+            Console.WriteLine("Zonas:");
+            for (int i = 0; i < GestaoDados.Zonas.Length; i++)
+            {
+                Console.WriteLine($"{i + 1} - {GestaoDados.Zonas[i]}");
+            }
+            Console.Write("Escolha zona (número): ");
+            int zidx = LerInt();
+            string zona = (zidx >= 1 && zidx <= GestaoDados.Zonas.Length) ? GestaoDados.Zonas[zidx - 1] : GestaoDados.Zonas[0];
+
+            Console.WriteLine("Tipologias disponíveis:");
+            for (int i = 0; i < GestaoDados.Tipologias.Count; i++)
+            {
+                Console.WriteLine($"{i + 1} - {GestaoDados.Tipologias[i]}");
+            }
+            Console.Write("Escolha tipologia (número): ");
+            int tidx = LerInt();
+            string tip = (tidx >= 1 && tidx <= GestaoDados.Tipologias.Count) ? GestaoDados.Tipologias[tidx - 1] : GestaoDados.Tipologias.First();
+
+            Unidade u;
+            if (tip == "EDCCI")
+            {
+                u = new EDCCI(nome, distrito, zona);
+            }
+            else
+            {
+                Console.Write("Número de camas: ");
+                int camas = LerInt();
+                if (tip == "UC") u = new UC(nome, distrito, zona, camas);
+                else if (tip == "UMDR") u = new UMDR(nome, distrito, zona, camas);
+                else if (tip == "ULDM") u = new ULDM(nome, distrito, zona, camas);
+                else u = new UC(nome, distrito, zona, camas); // fallback
+            }
+
+            GestaoDados.InserirUnidade(u);
+            Console.WriteLine("Unidade inserida.");
+            Console.ReadKey();
+        }
+
+        private static void AtualizarUnidade()
+        {
+            Console.Clear();
+            Console.WriteLine("=== Atualizar Unidade ===");
+            Console.Write("Nome da unidade: ");
+            string nome = Console.ReadLine();
+            Unidade u = GestaoDados.ObterUnidades().FirstOrDefault(x => x.Nome == nome);
+            if (u == null)
+            {
+                Console.WriteLine("Unidade não encontrada.");
+                Console.ReadKey();
+                return;
+            }
+
+            if (u.ConsultarDoentes().Any())
+            {
+                Console.WriteLine("Não é possível atualizar unidade com doentes internados. Faça alta antes.");
+                Console.ReadKey();
+                return;
+            }
+
+            // Recriar unidade com novos dados (porque propriedades têm set protected)
+            Console.WriteLine("Deixe em branco para manter o valor atual.");
+            Console.Write($"Novo nome (atual: {u.Nome}): ");
+            string novoNome = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(novoNome)) novoNome = u.Nome;
+
+            Console.Write($"Novo distrito (atual: {u.Distrito}): ");
+            string novoDistrito = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(novoDistrito)) novoDistrito = u.Distrito;
+
+            Console.WriteLine("Zonas:");
+            for (int i = 0; i < GestaoDados.Zonas.Length; i++)
+                Console.WriteLine($"{i + 1} - {GestaoDados.Zonas[i]}");
+            Console.Write("Escolha nova zona (número, 0 para manter): ");
+            int zidx;
+            if (!int.TryParse(Console.ReadLine(), out zidx) || zidx < 1 || zidx > GestaoDados.Zonas.Length)
+                zidx = -1;
+            string novaZona = zidx == -1 ? u.Zona : GestaoDados.Zonas[zidx - 1];
+
+            string tip = u.GetTipologia();
+            Unidade novaUnidade;
+            if (tip == "EDCCI")
+            {
+                novaUnidade = new EDCCI(novoNome, novoDistrito, novaZona);
+            }
+            else
+            {
+                Console.Write("Número de camas: ");
+                int camas = LerInt();
+                if (tip == "UC") novaUnidade = new UC(novoNome, novoDistrito, novaZona, camas);
+                else if (tip == "UMDR") novaUnidade = new UMDR(novoNome, novoDistrito, novaZona, camas);
+                else if (tip == "ULDM") novaUnidade = new ULDM(novoNome, novoDistrito, novaZona, camas);
+                else novaUnidade = new UC(novoNome, novoDistrito, novaZona, camas);
+            }
+
+            // substituir: remover e inserir
+            GestaoDados.RemoverUnidade(u.Nome);
+            GestaoDados.InserirUnidade(novaUnidade);
+            Console.WriteLine("Unidade atualizada.");
+            Console.ReadKey();
+        }
+
+        private static void ConsultarUnidades()
+        {
+            Console.Clear();
+            Console.WriteLine("=== Lista de Unidades ===");
+            var lista = GestaoDados.ObterUnidades().ToList();
+            if (!lista.Any())
+            {
+                Console.WriteLine("Nenhuma unidade registada.");
+            }
+            else
+            {
+                foreach (var u in lista)
+                {
+                    Console.WriteLine($"Nome:{u.Nome} | Tipologia:{u.GetTipologia()} | Distrito:{u.Distrito} | Zona:{u.Zona} | Camas Livres:{u.CamasDisponiveis()}");
+                }
+            }
+            Console.ReadKey();
+        }
+
+        private static void EliminarUnidade()
+        {
+            Console.Clear();
+            Console.WriteLine("=== Eliminar Unidade ===");
+            Console.Write("Nome da unidade: ");
+            string nome = Console.ReadLine();
+            try
+            {
+                GestaoDados.RemoverUnidade(nome);
+                Console.WriteLine("Unidade removida.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro: {ex.Message}");
+            }
+            Console.ReadKey();
+        }
+
+        // ---------------------------
+        // Menu Tipologias
+        // ---------------------------
+        private static void MenuTipologias()
+        {
+            int opcao;
+            do
+            {
+                Console.Clear();
+                Console.WriteLine("=== Gestão de Tipologias ===");
+                Console.WriteLine("1 - Inserir");
+                Console.WriteLine("2 - Atualizar");
+                Console.WriteLine("3 - Consultar");
+                Console.WriteLine("4 - Eliminar");
+                Console.WriteLine("0 - Sair");
+                Console.Write("\nEscolha uma opção: ");
+
+                if (!int.TryParse(Console.ReadLine(), out opcao))
+                {
+                    Console.WriteLine("Opção inválida.");
+                    Console.ReadKey();
+                    continue;
+                }
+
+                try
+                {
+                    switch (opcao)
+                    {
+                        case 1:
+                            InserirTipologia();
+                            break;
+                        case 2:
+                            AtualizarTipologia();
+                            break;
+                        case 3:
+                            ConsultarTipologias();
+                            break;
+                        case 4:
+                            EliminarTipologia();
+                            break;
+                        case 0:
+                            break;
+                        default:
+                            Console.WriteLine("Opção inválida.");
+                            Console.ReadKey();
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Erro: {ex.Message}");
+                    Console.ReadKey();
+                }
+
+            } while (opcao != 0);
+        }
+
+        private static void InserirTipologia()
+        {
+            Console.Clear();
+            Console.WriteLine("=== Inserir Tipologia ===");
+            Console.Write("Nome da tipologia: ");
+            string t = Console.ReadLine();
+            try
+            {
+                GestaoDados.InserirTipologia(t);
+                Console.WriteLine("Tipologia inserida.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro: {ex.Message}");
+            }
+            Console.ReadKey();
+        }
+
+        private static void AtualizarTipologia()
+        {
+            Console.Clear();
+            Console.WriteLine("=== Atualizar Tipologia ===");
+            Console.WriteLine("Tipologias atuais:");
+            ConsultarTipologias(false);
+            Console.Write("Tipologia a alterar: ");
+            string antiga = Console.ReadLine();
+            Console.Write("Nova tipologia: ");
+            string nova = Console.ReadLine();
+
+            try
+            {
+                // simples estratégia: remover antiga e inserir nova
+                GestaoDados.RemoverTipologia(antiga);
+                GestaoDados.InserirTipologia(nova);
+                Console.WriteLine("Tipologia atualizada.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro: {ex.Message}");
+            }
+            Console.ReadKey();
+        }
+
+        private static void ConsultarTipologias(bool wait = true)
+        {
+            Console.Clear();
+            Console.WriteLine("=== Tipologias ===");
+            var lista = GestaoDados.Tipologias.ToList();
+            if (!lista.Any())
+            {
+                Console.WriteLine("Nenhuma tipologia definida.");
+            }
+            else
+            {
+                foreach (var t in lista)
+                {
+                    Console.WriteLine($"- {t}");
+                }
+            }
+            if (wait) Console.ReadKey();
+        }
+
+        private static void EliminarTipologia()
+        {
+            Console.Clear();
+            Console.WriteLine("=== Eliminar Tipologia ===");
+            Console.Write("Tipologia: ");
+            string t = Console.ReadLine();
+            try
+            {
+                GestaoDados.RemoverTipologia(t);
+                Console.WriteLine("Tipologia removida.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro: {ex.Message}");
+            }
+            Console.ReadKey();
+        }
+
+        // ---------------------------
+        // Helpers
+        // ---------------------------
+        private static int LerInt()
+        {
+            int val;
+            while (!int.TryParse(Console.ReadLine(), out val))
+            {
+                Console.Write("Valor inválido. Tente novamente: ");
+            }
+            return val;
+        }
+
+        private static int LerIntAllowEmpty(int valorAtual)
+        {
+            string s = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(s)) return valorAtual;
+            int v;
+            if (int.TryParse(s, out v)) return v;
+            return valorAtual;
+        }
+    }
+}
