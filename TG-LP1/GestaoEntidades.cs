@@ -59,20 +59,18 @@ namespace TG_LP1
         public string NIF { get; private set; }
         public string TipologiaNecessaria { get; private set; } // "UC","UMDR","ULDM","EDCCI"
         public string OrigemReferencia { get; private set; }
-        public string FamiliaDistrito { get; private set; }
         public string TipoDoenca { get; private set; }
         private List<Visitante> autorizados = new List<Visitante>();
 
         public IReadOnlyList<Visitante> Autorizados => autorizados.AsReadOnly();
 
-        public Doente(int numero, string nome, int idade, string nif, string tipologia, string origem, string familiaDistrito, string tipoDoenca)
+        public Doente(int numero, string nome, int idade, string nif, string tipologia, string origem, string tipoDoenca)
             : base(nome, idade)
         {
             Numero = numero;
             NIF = nif;
             TipologiaNecessaria = tipologia;
             OrigemReferencia = origem;
-            FamiliaDistrito = familiaDistrito;
             TipoDoenca = tipoDoenca;
         }
 
@@ -90,17 +88,16 @@ namespace TG_LP1
             autorizados.RemoveAll(v => v.Nome == nome);
         }
 
-        public void AtualizarDados(string nome, int idade, string familiaDistrito, string tipoDoenca)
+        public void AtualizarDados(string nome, int idade, string tipoDoenca)
         {
             if (!string.IsNullOrWhiteSpace(nome)) Nome = nome;
             if (idade > 0) Idade = idade;
-            if (!string.IsNullOrWhiteSpace(familiaDistrito)) FamiliaDistrito = familiaDistrito;
             if (!string.IsNullOrWhiteSpace(tipoDoenca)) TipoDoenca = tipoDoenca;
         }
 
         public void Mostrar()
         {
-            Console.WriteLine($"Nº:{Numero} | Nome:{Nome} | Idade:{Idade} | NIF:{NIF} | Tipologia:{TipologiaNecessaria} | Doença:{TipoDoenca} | DistritoFam:{FamiliaDistrito}");
+            Console.WriteLine($"Nº:{Numero} | Nome:{Nome} | Idade:{Idade} | NIF:{NIF} | Tipologia:{TipologiaNecessaria} | Doença:{TipoDoenca}");
         }
     }
 
@@ -133,14 +130,12 @@ namespace TG_LP1
     public abstract class Unidade
     {
         public string Nome { get; protected set; }
-        public string Distrito { get; protected set; }
         public string Zona { get; protected set; } // "Norte","Centro","Sul"
         protected List<Cama> Camas;
 
-        protected Unidade(string nome, string distrito, string zona, int totalCamas)
+        protected Unidade(string nome, string zona, int totalCamas)
         {
             Nome = nome;
-            Distrito = distrito;
             Zona = zona;
             Camas = new List<Cama>();
             for (int i = 1; i <= totalCamas; i++)
@@ -173,6 +168,14 @@ namespace TG_LP1
             return num;
         }
 
+        // Devolve o número da cama onde o doente com o NIF se encontra, sem alterar o estado da cama
+        public int? ObterNumeroCamaDoente(string nif)
+        {
+            Cama c = Camas.FirstOrDefault(x => x.Ocupada && x.DoenteAtual.NIF == nif);
+            if (c == null) return null;
+            return c.Numero;
+        }
+
         public bool ContemDoente(string nif)
         {
             return Camas.Any(c => c.Ocupada && c.DoenteAtual.NIF == nif);
@@ -194,25 +197,25 @@ namespace TG_LP1
 
     public class UC : Unidade
     {
-        public UC(string nome, string distrito, string zona, int camas) : base(nome, distrito, zona, camas) { }
+        public UC(string nome, string zona, int camas) : base(nome, zona, camas) { }
         public override string GetTipologia() { return "UC"; }
     }
 
     public class UMDR : Unidade
     {
-        public UMDR(string nome, string distrito, string zona, int camas) : base(nome, distrito, zona, camas) { }
+        public UMDR(string nome, string zona, int camas) : base(nome, zona, camas) { }
         public override string GetTipologia() { return "UMDR"; }
     }
 
     public class ULDM : Unidade
     {
-        public ULDM(string nome, string distrito, string zona, int camas) : base(nome, distrito, zona, camas) { }
+        public ULDM(string nome, string zona, int camas) : base(nome, zona, camas) { }
         public override string GetTipologia() { return "ULDM"; }
     }
 
     public class EDCCI : Unidade
     {
-        public EDCCI(string nome, string distrito, string zona) : base(nome, distrito, zona, 0) { }
+        public EDCCI(string nome, string zona) : base(nome, zona, 0) { }
         public override string GetTipologia() { return "EDCCI"; }
 
         // equipa domiciliária não usa camas; regista atendimentos internamente se necessário
@@ -251,12 +254,12 @@ namespace TG_LP1
         // =========================
         // DOENTES CRUD
         // =========================
-        public static Doente CriarDoente(string nome, int idade, string nif, string tipologia, string origem, string familiaDistrito, string tipoDoenca)
+        public static Doente CriarDoente(string nome, int idade, string nif, string tipologia, string origem, string tipoDoenca)
         {
             if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF obrigatório.");
             if (doentes.Any(x => x.NIF == nif)) throw new Exception("NIF já registado.");
 
-            Doente d = new Doente(proximoNumeroDoente, nome, idade, nif, tipologia, origem, familiaDistrito, tipoDoenca);
+            Doente d = new Doente(proximoNumeroDoente, nome, idade, nif, tipologia, origem, tipoDoenca);
             proximoNumeroDoente++;
             doentes.Add(d);
             return d;
@@ -315,6 +318,19 @@ namespace TG_LP1
             unidades.RemoveAll(x => x.Nome == nome);
         }
 
+        // Admitir doente numa unidade verificando primeiro se já está internado
+        public static int AdmitirDoenteEmUnidade(Unidade u, Doente d)
+        {
+            if (u == null) throw new ArgumentNullException(nameof(u));
+            if (d == null) throw new ArgumentNullException(nameof(d));
+
+            // Verifica se o doente já está internado em qualquer unidade
+            if (unidades.Any(x => x.ContemDoente(d.NIF)))
+                throw new Exception("Doente já internado. Não é possível admitir novamente.");
+
+            return u.AdmitirDoente(d);
+        }
+
         // =========================
         // TIPOLOGIAS
         // =========================
@@ -341,7 +357,7 @@ namespace TG_LP1
         {
             if (item == null) throw new ArgumentNullException(nameof(item));
             // usa GestaoDados para persistir
-            GestaoDados.CriarDoente(item.Nome, item.Idade, item.NIF, item.TipologiaNecessaria, item.OrigemReferencia, item.FamiliaDistrito, item.TipoDoenca);
+            GestaoDados.CriarDoente(item.Nome, item.Idade, item.NIF, item.TipologiaNecessaria, item.OrigemReferencia, item.TipoDoenca);
         }
 
         public void Atualizar(Func<Doente, bool> predicate, Action<Doente> atualizador)
@@ -558,10 +574,9 @@ namespace TG_LP1
                 Console.WriteLine("Opção inválida. Escolha 1, 2 ou 3.");
             }
 
-            string familia = LerLetras("Distrito da família: ");
-            string tipoDoenca = LerLetras("Tipo de doença: ");
+             string tipoDoenca = LerLetras("Tipo de doença: ");
 
-            GestaoDados.CriarDoente(nome, idade, nif, tipologia, origem, familia, tipoDoenca);
+            GestaoDados.CriarDoente(nome, idade, nif, tipologia, origem, tipoDoenca);
             Console.WriteLine("Doente inserido com sucesso.");
             Console.ReadKey();
         }
@@ -584,10 +599,9 @@ namespace TG_LP1
             string nome = LerLetras("Nome (atual: " + d.Nome + "): ", allowEmpty: true);
             Console.Write($"Idade (atual: {d.Idade}): ");
             int idade = LerIntAllowEmpty(d.Idade);
-            string familia = LerLetras($"Distrito família (atual: {d.FamiliaDistrito}): ", allowEmpty: true);
-            string tipoDoenca = LerLetras($"Tipo de doença (atual: {d.TipoDoenca}): ", allowEmpty: true);
+             string tipoDoenca = LerLetras($"Tipo de doença (atual: {d.TipoDoenca}): ", allowEmpty: true);
 
-            GestaoDados.AtualizarDoente(nif, doente => doente.AtualizarDados(nome, idade, familia, tipoDoenca));
+            GestaoDados.AtualizarDoente(nif, doente => doente.AtualizarDados(nome, idade, tipoDoenca));
             Console.WriteLine("Doente atualizado.");
             Console.ReadKey();
         }
@@ -692,17 +706,25 @@ namespace TG_LP1
             Console.WriteLine("=== Inserir Unidade ===");
             Console.Write("Nome: ");
             string nome = Console.ReadLine();
-            Console.Write("Distrito: ");
-            string distrito = Console.ReadLine();
 
-            Console.WriteLine("Zonas:");
-            for (int i = 0; i < GestaoDados.Zonas.Length; i++)
+            // Escolha zona: obrigatória, apenas 1..N
+            string zona;
+            while (true)
             {
-                Console.WriteLine($"{i + 1} - {GestaoDados.Zonas[i]}");
+                Console.WriteLine("Zonas:");
+                for (int i = 0; i < GestaoDados.Zonas.Length; i++)
+                {
+                    Console.WriteLine($"{i + 1} - {GestaoDados.Zonas[i]}");
+                }
+                Console.Write("Escolha zona (número): ");
+                int zidx = LerInt();
+                if (zidx >= 1 && zidx <= GestaoDados.Zonas.Length)
+                {
+                    zona = GestaoDados.Zonas[zidx - 1];
+                    break;
+                }
+                Console.WriteLine("Opção inválida. Escolha 1, 2 ou 3.");
             }
-            Console.Write("Escolha zona (número): ");
-            int zidx = LerInt();
-            string zona = (zidx >= 1 && zidx <= GestaoDados.Zonas.Length) ? GestaoDados.Zonas[zidx - 1] : GestaoDados.Zonas[0];
 
             Console.WriteLine("Tipologias disponíveis:");
             for (int i = 0; i < GestaoDados.Tipologias.Count; i++)
@@ -716,16 +738,16 @@ namespace TG_LP1
             Unidade u;
             if (tip == "EDCCI")
             {
-                u = new EDCCI(nome, distrito, zona);
+                u = new EDCCI(nome, zona);
             }
             else
             {
                 Console.Write("Número de camas: ");
                 int camas = LerInt();
-                if (tip == "UC") u = new UC(nome, distrito, zona, camas);
-                else if (tip == "UMDR") u = new UMDR(nome, distrito, zona, camas);
-                else if (tip == "ULDM") u = new ULDM(nome, distrito, zona, camas);
-                else u = new UC(nome, distrito, zona, camas); // fallback
+                if (tip == "UC") u = new UC(nome, zona, camas);
+                else if (tip == "UMDR") u = new UMDR(nome, zona, camas);
+                else if (tip == "ULDM") u = new ULDM(nome, zona, camas);
+                else u = new UC(nome, zona, camas); // fallback
             }
 
             GestaoDados.InserirUnidade(u);
@@ -760,10 +782,6 @@ namespace TG_LP1
             string novoNome = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(novoNome)) novoNome = u.Nome;
 
-            Console.Write($"Novo distrito (atual: {u.Distrito}): ");
-            string novoDistrito = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(novoDistrito)) novoDistrito = u.Distrito;
-
             Console.WriteLine("Zonas:");
             for (int i = 0; i < GestaoDados.Zonas.Length; i++)
                 Console.WriteLine($"{i + 1} - {GestaoDados.Zonas[i]}");
@@ -777,16 +795,16 @@ namespace TG_LP1
             Unidade novaUnidade;
             if (tip == "EDCCI")
             {
-                novaUnidade = new EDCCI(novoNome, novoDistrito, novaZona);
+                novaUnidade = new EDCCI(novoNome, novaZona);
             }
             else
             {
                 Console.Write("Número de camas: ");
                 int camas = LerInt();
-                if (tip == "UC") novaUnidade = new UC(novoNome, novoDistrito, novaZona, camas);
-                else if (tip == "UMDR") novaUnidade = new UMDR(novoNome, novoDistrito, novaZona, camas);
-                else if (tip == "ULDM") novaUnidade = new ULDM(novoNome, novoDistrito, novaZona, camas);
-                else novaUnidade = new UC(novoNome, novoDistrito, novaZona, camas);
+                if (tip == "UC") novaUnidade = new UC(novoNome, novaZona, camas);
+                else if (tip == "UMDR") novaUnidade = new UMDR(novoNome, novaZona, camas);
+                else if (tip == "ULDM") novaUnidade = new ULDM(novoNome, novaZona, camas);
+                else novaUnidade = new UC(novoNome, novaZona, camas);
             }
 
             // substituir: remover e inserir
@@ -809,7 +827,7 @@ namespace TG_LP1
             {
                 foreach (var u in lista)
                 {
-                    Console.WriteLine($"Nome:{u.Nome} | Tipologia:{u.GetTipologia()} | Distrito:{u.Distrito} | Zona:{u.Zona} | Camas Livres:{u.CamasDisponiveis()}");
+                    Console.WriteLine($"Nome:{u.Nome} | Tipologia:{u.GetTipologia()} | Zona:{u.Zona} | Camas Livres:{u.CamasDisponiveis()}");
                 }
             }
             Console.ReadKey();

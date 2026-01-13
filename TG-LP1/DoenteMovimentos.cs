@@ -130,6 +130,14 @@ namespace TG_LP1
             if (doente == null)
                 throw new Exception("Doente não encontrado.");
 
+            // Impedir admissão duplicada: se já estiver internado, avisar e abortar
+            if (GestaoDados.ObterUnidades().Any(u => u.ContemDoente(nif)))
+            {
+                Console.WriteLine("Doente já se encontra internado. Não é possível admitir novamente.");
+                Console.ReadKey();
+                return;
+            }
+
             List<Unidade> unidadesDisponiveis = GestaoDados.ObterUnidades()
                 .Where(unidade =>
                     unidade.GetTipologia() == doente.TipologiaNecessaria &&
@@ -149,7 +157,7 @@ namespace TG_LP1
                 throw new Exception("Opção inválida.");
 
             Unidade unidadeEscolhida = unidadesDisponiveis[idx - 1];
-            int cama = unidadeEscolhida.AdmitirDoente(doente);
+            int cama = GestaoDados.AdmitirDoenteEmUnidade(unidadeEscolhida, doente);
 
             GestaoMovimentos.Registar(
                 new MovimentoDoente(nif, unidadeEscolhida.Nome, cama, TipoMovimento.Admissao));
@@ -228,7 +236,7 @@ namespace TG_LP1
 
             int? camaOrigem = unidadeOrigem.LibertarCamaDoente(nif);
             Unidade unidadeDestino = unidadesDestino[idx - 1];
-            int camaDestino = unidadeDestino.AdmitirDoente(doente);
+            int camaDestino = GestaoDados.AdmitirDoenteEmUnidade(unidadeDestino, doente);
 
             GestaoMovimentos.Registar(
                 new MovimentoDoente(nif, unidadeOrigem.Nome, camaOrigem, TipoMovimento.Transferencia));
@@ -270,16 +278,29 @@ namespace TG_LP1
             Console.Clear();
             Console.WriteLine("=== Extrato de Movimentos por Cama ===");
 
-            Console.Write("Nome da unidade: ");
-            string unidade = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(unidade)) throw new ArgumentException("Unidade inválida.");
+            // Agora procuramos pelo NIF do doente e determinamos a unidade + cama automaticamente
+            Console.Write("NIF do doente: ");
+            string nif = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF inválido.");
 
-            Console.Write("Número da cama: ");
-            string camaStr = Console.ReadLine();
-            if (!int.TryParse(camaStr, out int cama))
-                throw new ArgumentException("Número de cama inválido.");
+            // localizar unidade onde o doente está internado
+            Unidade unidadeInternamento = GestaoDados.ObterUnidades().FirstOrDefault(u => u.ContemDoente(nif));
+            if (unidadeInternamento == null)
+            {
+                Console.WriteLine("Doente não está internado em nenhuma unidade.");
+                Console.ReadKey();
+                return;
+            }
 
-            var lista = GestaoMovimentos.PorCama(unidade, cama).ToList();
+            int? camaNum = unidadeInternamento.ObterNumeroCamaDoente(nif);
+            if (!camaNum.HasValue)
+            {
+                Console.WriteLine("Não foi possível determinar a cama do doente.");
+                Console.ReadKey();
+                return;
+            }
+
+            var lista = GestaoMovimentos.PorCama(unidadeInternamento.Nome, camaNum.Value).ToList();
 
             if (!lista.Any())
                 Console.WriteLine("Sem movimentos para esta cama.");

@@ -71,7 +71,10 @@ namespace TG_LP1
             {
                 Console.WriteLine($"\nUnidade: {u.Nome} ({u.GetTipologia()})");
 
-                var doentes = u.ConsultarDoentes().ToList();
+                var doentes = u.ConsultarDoentes()
+                    .GroupBy(d => d.NIF)
+                    .Select(g => g.First())
+                    .ToList();
                 if (!doentes.Any())
                 {
                     Console.WriteLine("  Sem doentes internados.");
@@ -162,7 +165,7 @@ namespace TG_LP1
                 foreach (var u in unidades)
                 {
                     Console.WriteLine(
-                        $"{u.Nome} | {u.GetTipologia()} | {u.Distrito} | Zona: {u.Zona} | Camas Livres: {u.CamasDisponiveis()}");
+                        $"{u.Nome} | {u.GetTipologia()} | Zona: {u.Zona} | Camas Livres: {u.CamasDisponiveis()}");
                 }
             }
 

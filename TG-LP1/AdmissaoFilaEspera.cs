@@ -143,6 +143,16 @@ namespace TG_LP1
 
             Doente d = pedido.Doente;
 
+            // Se o doente já está internado noutro local, remover pedido e avisar para evitar duplicados
+            if (GestaoDados.ObterUnidades().Any(u => u.ContemDoente(d.NIF)))
+            {
+                // Remove o pedido da fila para evitar tentar admissão futura
+                GestaoFilaEspera.RemoverPedido();
+                Console.WriteLine("O doente já se encontra internado. Pedido removido da fila.");
+                Console.ReadKey();
+                return;
+            }
+
             Unidade unidade = GestaoDados.ObterUnidades()
                 .FirstOrDefault(u =>
                     u.GetTipologia() == d.TipologiaNecessaria &&
@@ -152,7 +162,7 @@ namespace TG_LP1
             if (unidade == null)
                 throw new Exception("Ainda não existem unidades disponíveis.");
 
-            int cama = unidade.AdmitirDoente(d);
+            int cama = GestaoDados.AdmitirDoenteEmUnidade(unidade, d);
 
             GestaoMovimentos.Registar(
                 new MovimentoDoente(d.NIF, unidade.Nome, cama, TipoMovimento.Admissao));
@@ -238,9 +248,35 @@ namespace TG_LP1
                         break;
 
                     case 2:
-                        Console.Write("Nome do visitante: ");
-                        string rem = Console.ReadLine();
-                        d.RevogarVisitante(rem);
+                        if (!d.Autorizados.Any())
+                        {
+                            Console.WriteLine("Nenhum visitante autorizado.");
+                            Console.ReadKey();
+                            break;
+                        }
+
+                        Console.WriteLine("Visitantes autorizados:");
+                        for (int i = 0; i < d.Autorizados.Count; i++)
+                        {
+                            var v = d.Autorizados[i];
+                            Console.WriteLine($"{i + 1} - {v.Nome} ({v.Relacao})");
+                        }
+                        Console.WriteLine("0 - Cancelar");
+                        Console.Write("Escolha o visitante a remover (número): ");
+                        string sel = Console.ReadLine();
+                        if (!int.TryParse(sel, out int selIdx) || selIdx < 0 || selIdx > d.Autorizados.Count)
+                        {
+                            Console.WriteLine("Opção inválida.");
+                            Console.ReadKey();
+                            break;
+                        }
+                        if (selIdx == 0)
+                        {
+                            // cancelar
+                            break;
+                        }
+                        var visitante = d.Autorizados[selIdx - 1];
+                        d.RevogarVisitante(visitante.Nome);
                         Console.WriteLine("Visitante removido.");
                         Console.ReadKey();
                         break;

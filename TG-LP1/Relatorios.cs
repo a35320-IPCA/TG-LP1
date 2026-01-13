@@ -15,9 +15,8 @@ namespace TG_LP1
             {
                 Console.Clear();
                 Console.WriteLine("=== Relatórios ===");
-                Console.WriteLine("1 - Relatório de Ocupação por Distrito");
-                Console.WriteLine("2 - Relatório de Ocupação por Zona (Norte / Centro / Sul)");
-                Console.WriteLine("3 - Relatório Global da RNCCI");
+                Console.WriteLine("1 - Relatório de Ocupação por Zona (Norte / Centro / Sul)");
+                Console.WriteLine("2 - Relatório Global da RNCCI");
                 Console.WriteLine("0 - Voltar ao Menu Principal");
                 Console.Write("\nOpção: ");
 
@@ -34,7 +33,6 @@ namespace TG_LP1
                 {
                     switch (opcao)
                     {
-                        case 1: RelatorioPorDistrito(); break;
                         case 2: RelatorioPorZona(); break;
                         case 3: RelatorioGlobal(); break;
                     }
@@ -46,36 +44,6 @@ namespace TG_LP1
                 }
 
             } while (opcao != 0);
-        }
-
-        // =====================================================
-        // 1 - RELATÓRIO POR DISTRITO
-        // =====================================================
-        private static void RelatorioPorDistrito()
-        {
-            Console.Clear();
-            Console.WriteLine("=== Relatório de Ocupação por Distrito ===\n");
-
-            var distritos = GestaoDados.ObterUnidades()
-                .Select(u => u.Distrito)
-                .Distinct();
-
-            foreach (var d in distritos)
-            {
-                var unidades = GestaoDados.ObterUnidades()
-                    .Where(u => u.Distrito == d)
-                    .ToList();
-
-                int camasTotais = unidades.Sum(u => u.ConsultarDoentes().Count() + u.CamasDisponiveis());
-                int camasOcupadas = unidades.Sum(u => u.ConsultarDoentes().Count());
-
-                Console.WriteLine($"Distrito: {d}");
-                Console.WriteLine($"  Unidades: {unidades.Count}");
-                Console.WriteLine($"  Camas ocupadas: {camasOcupadas} / {camasTotais}");
-                Console.WriteLine();
-            }
-
-            Console.ReadKey();
         }
 
         // =====================================================
@@ -127,7 +95,7 @@ namespace TG_LP1
             {
                 int camasU = u.ConsultarDoentes().Count() + u.CamasDisponiveis();
                 int ocupadasU = u.ConsultarDoentes().Count();
-                Console.WriteLine($"{u.Nome} | Tipologia: {u.GetTipologia()} | Distrito: {u.Distrito} | Zona: {u.Zona}");
+                Console.WriteLine($"{u.Nome} | Tipologia: {u.GetTipologia()} | Zona: {u.Zona}");
                 Console.WriteLine($"  Camas ocupadas: {ocupadasU} / {camasU}");
             }
 
