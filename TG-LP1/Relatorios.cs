@@ -33,8 +33,8 @@ namespace TG_LP1
                 {
                     switch (opcao)
                     {
-                        case 2: RelatorioPorZona(); break;
-                        case 3: RelatorioGlobal(); break;
+                        case 1: RelatorioPorZona(); break;
+                        case 2: RelatorioGlobal(); break;
                     }
                 }
                 catch (Exception ex)
@@ -57,7 +57,7 @@ namespace TG_LP1
             foreach (var zona in GestaoDados.Zonas)
             {
                 var unidades = GestaoDados.ObterUnidades()
-                    .Where(u => u.Zona == zona)
+                    .Where(u => string.Equals(u.Zona, zona, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 int camasTotais = unidades.Sum(u => u.ConsultarDoentes().Count() + u.CamasDisponiveis());

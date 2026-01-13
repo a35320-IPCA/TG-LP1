@@ -11,13 +11,11 @@ namespace TG_LP1
     {
         public Doente Doente { get; }
         public DateTime DataPedido { get; }
-        public bool EntrouNaPortaria { get;  set; }
 
         public PedidoAdmissao(Doente doente)
         {
             Doente = doente;
             DataPedido = DateTime.Now;
-            EntrouNaPortaria = false;
         }
 
         public override string ToString()
@@ -73,8 +71,7 @@ namespace TG_LP1
                 Console.WriteLine("=== Admissões e Fila de Espera ===");
                 Console.WriteLine("1 - Registar Pedido de Admissão (Fila de Espera)");
                 Console.WriteLine("2 - Atribuição Automática de Unidade");
-                Console.WriteLine("3 - Registar Entrada na Portaria");
-                Console.WriteLine("4 - Gerir Lista de Visitantes Autorizados");
+                Console.WriteLine("3 - Gerir Lista de Visitantes Autorizados");
                 Console.WriteLine("0 - Voltar ao Menu Principal");
                 Console.Write("\nOpção: ");
 
@@ -93,8 +90,7 @@ namespace TG_LP1
                     {
                         case 1: RegistarPedido(); break;
                         case 2: AtribuirUnidadeAutomaticamente(); break;
-                        case 3: RegistarEntradaPortaria(); break;
-                        case 4: GerirVisitantes(); break;
+                        case 3: GerirVisitantes(); break;
                     }
                 }
                 catch (Exception ex)
@@ -174,32 +170,7 @@ namespace TG_LP1
         }
 
         // =====================================================
-        // 3 - ENTRADA NA PORTARIA
-        // =====================================================
-        private static void RegistarEntradaPortaria()
-        {
-            Console.Clear();
-            Console.WriteLine("=== Entrada na Portaria ===");
-
-            Console.Write("NIF do doente: ");
-            string nif = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(nif))
-                throw new ArgumentException("NIF inválido.");
-
-            PedidoAdmissao pedido = GestaoFilaEspera.Consultar()
-                .FirstOrDefault(p => p.Doente.NIF == nif);
-
-            if (pedido == null)
-                throw new Exception("Doente não se encontra em fila de espera.");
-
-            pedido.EntrouNaPortaria = true;
-
-            Console.WriteLine("Entrada na portaria registada.");
-            Console.ReadKey();
-        }
-
-        // =====================================================
-        // 4 - VISITANTES AUTORIZADOS
+        // 3 - VISITANTES AUTORIZADOS
         // =====================================================
         private static void GerirVisitantes()
         {
