@@ -18,9 +18,14 @@ namespace TG_LP1
                 Console.WriteLine("0 - Voltar ao Menu Principal");
                 Console.Write("\nEscolha uma opção: ");
 
-                if (!int.TryParse(Console.ReadLine(), out opcao))
+                string input = Console.ReadLine();
+                if (!int.TryParse(input, out opcao))
+                {
+                    Console.WriteLine("Opção inválida. Prima qualquer tecla para voltar ao menu.");
+                    Console.ReadKey();
+                    opcao = -1;
                     continue;
-
+                }
                 try
                 {
                     switch (opcao)

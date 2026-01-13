@@ -25,8 +25,15 @@ namespace TG_LP1
                 Console.WriteLine("6 - Estatísticas");
                 Console.WriteLine("0 - Sair");
                 Console.Write("\nEscolha uma opção: ");
-
-                opcao = int.Parse(Console.ReadLine());
+                
+                string input = Console.ReadLine();
+                if (!int.TryParse(input, out opcao))
+                {
+                    Console.WriteLine("Opção inválida. Prima qualquer tecla para voltar ao menu.");
+                    Console.ReadKey();
+                    opcao = -1; // garantir que o loop continua
+                    continue;
+                }
 
                 switch (opcao)
                 {

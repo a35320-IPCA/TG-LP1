@@ -11,7 +11,7 @@ namespace TG_LP1
     {
         public Doente Doente { get; }
         public DateTime DataPedido { get; }
-        public bool EntrouNaPortaria { get; set; }
+        public bool EntrouNaPortaria { get;  set; }
 
         public PedidoAdmissao(Doente doente)
         {
@@ -31,8 +31,7 @@ namespace TG_LP1
     // =====================================================
     public static class GestaoFilaEspera
     {
-        private static readonly Queue<PedidoAdmissao> fila =
-            new Queue<PedidoAdmissao>();
+        private static readonly Queue<PedidoAdmissao> fila = new Queue<PedidoAdmissao>();
 
         public static void AdicionarPedido(Doente d)
         {
@@ -53,9 +52,10 @@ namespace TG_LP1
                 fila.Dequeue();
         }
 
+        // devolve snapshot para evitar exposição da coleção interna
         public static IEnumerable<PedidoAdmissao> Consultar()
         {
-            return fila;
+            return fila.ToList();
         }
     }
 
@@ -78,8 +78,14 @@ namespace TG_LP1
                 Console.WriteLine("0 - Voltar ao Menu Principal");
                 Console.Write("\nOpção: ");
 
-                if (!int.TryParse(Console.ReadLine(), out opcao))
+                string input = Console.ReadLine();
+                if (!int.TryParse(input, out opcao))
+                {
+                    Console.WriteLine("Opção inválida. Prima qualquer tecla para voltar ao menu.");
+                    Console.ReadKey();
+                    opcao = -1;
                     continue;
+                }
 
                 try
                 {
@@ -110,6 +116,8 @@ namespace TG_LP1
 
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(nif))
+                throw new ArgumentException("NIF inválido.");
 
             Doente d = GestaoDados.ObterDoentePorNIF(nif);
             if (d == null)
@@ -165,6 +173,8 @@ namespace TG_LP1
 
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(nif))
+                throw new ArgumentException("NIF inválido.");
 
             PedidoAdmissao pedido = GestaoFilaEspera.Consultar()
                 .FirstOrDefault(p => p.Doente.NIF == nif);
@@ -188,6 +198,8 @@ namespace TG_LP1
 
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(nif))
+                throw new ArgumentException("NIF inválido.");
 
             Doente d = GestaoDados.ObterDoentePorNIF(nif);
             if (d == null)
@@ -204,7 +216,14 @@ namespace TG_LP1
                 Console.WriteLine("0 - Voltar");
                 Console.Write("\nOpção: ");
 
-                int.TryParse(Console.ReadLine(), out opcao);
+                string in2 = Console.ReadLine();
+                if (!int.TryParse(in2, out opcao))
+                {
+                    Console.WriteLine("Opção inválida. Prima qualquer tecla para voltar.");
+                    Console.ReadKey();
+                    opcao = -1;
+                    continue;
+                }
 
                 switch (opcao)
                 {

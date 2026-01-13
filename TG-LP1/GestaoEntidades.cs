@@ -510,12 +510,26 @@ namespace TG_LP1
         {
             Console.Clear();
             Console.WriteLine("=== Inserir Doente ===");
-            Console.Write("Nome: ");
-            string nome = Console.ReadLine();
+            string nome = LerLetras("Nome: ");
             Console.Write("Idade: ");
-            int idade = LerInt();
-            Console.Write("NIF: ");
-            string nif = Console.ReadLine();
+            int idade = LerIntPositivo();
+            string nif;
+            while (true)
+            {
+                Console.Write("NIF: ");
+                nif = Console.ReadLine()?.Trim();
+                if (string.IsNullOrWhiteSpace(nif))
+                {
+                    Console.WriteLine("NIF inválido. Tente novamente.");
+                    continue;
+                }
+                if (GestaoDados.ObterDoentePorNIF(nif) != null)
+                {
+                    Console.WriteLine("NIF já registado. Introduza outro NIF.");
+                    continue;
+                }
+                break;
+            }
 
             Console.WriteLine("Tipologias disponíveis:");
             for (int i = 0; i < GestaoDados.Tipologias.Count; i++)
@@ -523,15 +537,29 @@ namespace TG_LP1
                 Console.WriteLine($"{i + 1} - {GestaoDados.Tipologias[i]}");
             }
             Console.Write("Escolha tipologia (número): ");
-            int idx = LerInt();
-            string tipologia = (idx >= 1 && idx <= GestaoDados.Tipologias.Count) ? GestaoDados.Tipologias[idx - 1] : GestaoDados.Tipologias.First();
+            int index = LerInt();
+            string tipologia = (index >= 1 && index <= GestaoDados.Tipologias.Count) ? GestaoDados.Tipologias[index - 1] : GestaoDados.Tipologias.First();
 
-            Console.Write("Zona (Norte/Centro/Sul): ");
-            string origem = Console.ReadLine();
-            Console.Write("Distrito da família: ");
-            string familia = Console.ReadLine();
-            Console.Write("Tipo de doença: ");
-            string tipoDoenca = Console.ReadLine();
+            string origem;
+            while (true)
+            {
+                Console.WriteLine("Zonas:");
+                for (int i = 0; i < GestaoDados.Zonas.Length; i++)
+                {
+                    Console.WriteLine($"{i + 1} - {GestaoDados.Zonas[i]}");
+                }
+                Console.Write("Escolha zona (número): ");
+                int zonaindex = LerInt();
+                if (zonaindex >= 1 && zonaindex <= GestaoDados.Zonas.Length)
+                {
+                    origem = GestaoDados.Zonas[zonaindex - 1];
+                    break;
+                }
+                Console.WriteLine("Opção inválida. Escolha 1, 2 ou 3.");
+            }
+
+            string familia = LerLetras("Distrito da família: ");
+            string tipoDoenca = LerLetras("Tipo de doença: ");
 
             GestaoDados.CriarDoente(nome, idade, nif, tipologia, origem, familia, tipoDoenca);
             Console.WriteLine("Doente inserido com sucesso.");
@@ -553,14 +581,11 @@ namespace TG_LP1
             }
 
             Console.WriteLine("Deixe em branco para manter o valor atual.");
-            Console.Write($"Nome (atual: {d.Nome}): ");
-            string nome = Console.ReadLine();
+            string nome = LerLetras("Nome (atual: " + d.Nome + "): ", allowEmpty: true);
             Console.Write($"Idade (atual: {d.Idade}): ");
             int idade = LerIntAllowEmpty(d.Idade);
-            Console.Write($"Distrito família (atual: {d.FamiliaDistrito}): ");
-            string familia = Console.ReadLine();
-            Console.Write($"Tipo de doença (atual: {d.TipoDoenca}): ");
-            string tipoDoenca = Console.ReadLine();
+            string familia = LerLetras($"Distrito família (atual: {d.FamiliaDistrito}): ", allowEmpty: true);
+            string tipoDoenca = LerLetras($"Tipo de doença (atual: {d.TipoDoenca}): ", allowEmpty: true);
 
             GestaoDados.AtualizarDoente(nif, doente => doente.AtualizarDados(nome, idade, familia, tipoDoenca));
             Console.WriteLine("Doente atualizado.");
@@ -956,6 +981,36 @@ namespace TG_LP1
                 Console.Write("Valor inválido. Tente novamente: ");
             }
             return val;
+        }
+
+        private static int LerIntPositivo()
+        {
+            int val = LerInt();
+            while (val <= 0)
+            {
+                Console.Write("Idade inválida. Introduza um número inteiro positivo: ");
+                val = LerInt();
+            }
+            return val;
+        }
+
+        private static string LerLetras(string prompt, bool allowEmpty = false)
+        {
+            while (true)
+            {
+                Console.Write(prompt);
+                string s = Console.ReadLine();
+                if (string.IsNullOrWhiteSpace(s))
+                {
+                    if (allowEmpty) return string.Empty;
+                    Console.WriteLine("Entrada inválida. Utilize apenas letras e espaços.");
+                    continue;
+                }
+                s = s.Trim();
+                bool ok = s.All(c => char.IsLetter(c) || char.IsWhiteSpace(c) || c == '-');
+                if (ok) return s;
+                Console.WriteLine("Entrada inválida. Utilize apenas letras e espaços.");
+            }
         }
 
         private static int LerIntAllowEmpty(int valorAtual)

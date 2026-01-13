@@ -85,8 +85,14 @@ namespace TG_LP1
                 Console.WriteLine("0 - Voltar ao Menu Principal");
                 Console.Write("\nOpção: ");
 
-                if (!int.TryParse(Console.ReadLine(), out opcao))
+                string input = Console.ReadLine();
+                if (!int.TryParse(input, out opcao))
+                {
+                    Console.WriteLine("Opção inválida. Prima qualquer tecla para voltar ao menu.");
+                    Console.ReadKey();
+                    opcao = -1;
                     continue;
+                }
 
                 try
                 {
@@ -118,6 +124,7 @@ namespace TG_LP1
 
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF inválido.");
 
             Doente doente = GestaoDados.ObterDoentePorNIF(nif);
             if (doente == null)
@@ -136,7 +143,8 @@ namespace TG_LP1
                 Console.WriteLine($"{i + 1} - {unidadesDisponiveis[i].Nome}");
 
             Console.Write("Escolha a unidade: ");
-            if (!int.TryParse(Console.ReadLine(), out int idx) ||
+            string choice = Console.ReadLine();
+            if (!int.TryParse(choice, out int idx) ||
                 idx < 1 || idx > unidadesDisponiveis.Count)
                 throw new Exception("Opção inválida.");
 
@@ -160,6 +168,7 @@ namespace TG_LP1
 
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF inválido.");
 
             Unidade unidadeInternamento = GestaoDados.ObterUnidades()
                 .FirstOrDefault(u => u.ContemDoente(nif));
@@ -186,6 +195,7 @@ namespace TG_LP1
 
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF inválido.");
 
             Doente doente = GestaoDados.ObterDoentePorNIF(nif);
             if (doente == null)
@@ -211,7 +221,8 @@ namespace TG_LP1
                 Console.WriteLine($"{i + 1} - {unidadesDestino[i].Nome}");
 
             Console.Write("Escolha a unidade destino: ");
-            if (!int.TryParse(Console.ReadLine(), out int idx) ||
+            string choice = Console.ReadLine();
+            if (!int.TryParse(choice, out int idx) ||
                 idx < 1 || idx > unidadesDestino.Count)
                 throw new Exception("Opção inválida.");
 
@@ -239,6 +250,7 @@ namespace TG_LP1
 
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF inválido.");
 
             var lista = GestaoMovimentos.PorDoente(nif).ToList();
 
@@ -260,10 +272,12 @@ namespace TG_LP1
 
             Console.Write("Nome da unidade: ");
             string unidade = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(unidade)) throw new ArgumentException("Unidade inválida.");
 
             Console.Write("Número da cama: ");
-            if (!int.TryParse(Console.ReadLine(), out int cama))
-                throw new Exception("Número de cama inválido.");
+            string camaStr = Console.ReadLine();
+            if (!int.TryParse(camaStr, out int cama))
+                throw new ArgumentException("Número de cama inválido.");
 
             var lista = GestaoMovimentos.PorCama(unidade, cama).ToList();
 
