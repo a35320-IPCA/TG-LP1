@@ -1,6 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿// Program.cs - Ponto de entrada da aplicação. Inicia a UI de consola chamando o menu principal.
+using System;
 
 namespace TG_LP1
 {
@@ -10,6 +9,7 @@ namespace TG_LP1
         static void Main()
         {
 
+            // Ponto de entrada: delega para o menu principal (UI console)
             Menu.MostrarMenuPrincipal();
         }
 

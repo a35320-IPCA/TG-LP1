@@ -1,4 +1,10 @@
-﻿using System;
+﻿// DoenteMovimentos.cs - Registos de movimentos (admissão/alta/transferência) e menu para extratos.
+// Este ficheiro contém a definição da classe MovimentoDoente, que representa um movimento de um doente
+// entre unidades e camas, bem como a classe GestaoMovimentos, que gere o histórico desses movimentos.
+// Por fim, a classe DoentesMovimentos apresenta o menu para o utilizador interagir com o sistema de
+// registo de movimentos.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -36,6 +42,7 @@ namespace TG_LP1
 
         public override string ToString()
         {
+            // Representação simples para listagens: data | tipo | unidade | cama
             string camaTxt = Cama.HasValue ? $"Cama {Cama}" : "Sem cama";
             return $"{Data:dd/MM/yyyy HH:mm} | {Tipo} | {Unidade} | {camaTxt}";
         }
@@ -51,16 +58,19 @@ namespace TG_LP1
 
         public static void Registar(MovimentoDoente mov)
         {
+            // Regista um movimento no histórico (append-only)
             movimentos.Add(mov);
         }
 
         public static IEnumerable<MovimentoDoente> PorDoente(string nif)
         {
+            // Filtra movimentos por NIF (histórico do paciente)
             return movimentos.Where(m => m.NIFDoente == nif);
         }
 
         public static IEnumerable<MovimentoDoente> PorCama(string unidade, int cama)
         {
+            // Filtra movimentos por unidade e número de cama
             return movimentos.Where(m => m.Unidade == unidade && m.Cama == cama);
         }
     }
@@ -157,6 +167,7 @@ namespace TG_LP1
                 throw new Exception("Opção inválida.");
 
             Unidade unidadeEscolhida = unidadesDisponiveis[idx - 1];
+            // Chama a função central que garante que um NIF só pode estar internado uma vez
             int cama = GestaoDados.AdmitirDoenteEmUnidade(unidadeEscolhida, doente);
 
             GestaoMovimentos.Registar(
@@ -186,6 +197,7 @@ namespace TG_LP1
 
             int? cama = unidadeInternamento.LibertarCamaDoente(nif);
 
+            // Regista alta no histórico com a cama que ficou livre (pode ser null em casos estranhos)
             GestaoMovimentos.Registar(
                 new MovimentoDoente(nif, unidadeInternamento.Nome, cama, TipoMovimento.Alta));
 
@@ -234,6 +246,8 @@ namespace TG_LP1
                 idx < 1 || idx > unidadesDestino.Count)
                 throw new Exception("Opção inválida.");
 
+            // Primeiro libertamos a cama de origem e depois admitimos no destino.
+            // Nota: isto pode deixar o doente momentaneamente sem cama se a admissão destino falhar.
             int? camaOrigem = unidadeOrigem.LibertarCamaDoente(nif);
             Unidade unidadeDestino = unidadesDestino[idx - 1];
             int camaDestino = GestaoDados.AdmitirDoenteEmUnidade(unidadeDestino, doente);

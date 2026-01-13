@@ -1,4 +1,7 @@
-﻿using System;
+﻿// GestaoEntidades.cs - Definição das entidades do domínio (Doente, Unidade, Cama, Visitante)
+// e o repositório em memória (GestaoDados) com as operações CRUD e regras básicas.
+// =====================================================
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -7,6 +10,8 @@ namespace TG_LP1
     // =====================================================
     // EXCEÇÕES
     // =====================================================
+    // Exceções específicas do domínio usadas para sinalizar erros claros na UI/menus.
+    // Usar exceções específicas facilita distinguir erro de validação vs erro de sistema.
     public class EntidadeNaoEncontradaException : Exception
     {
         public EntidadeNaoEncontradaException(string msg) : base(msg) { }
@@ -25,6 +30,7 @@ namespace TG_LP1
     // =====================================================
     // ABSTRAÇÃO: Pessoa
     // =====================================================
+    // Pessoa: classe base simples; mantém apenas dados básicos (Nome e Idade).
     public abstract class Pessoa
     {
         public string Nome { get; protected set; }
@@ -40,6 +46,7 @@ namespace TG_LP1
     // =====================================================
     // ENTIDADES PRINCIPAIS
     // =====================================================
+    // Visitante: dados mínimos para representar visitas autorizadas.
     public class Visitante
     {
         public string Nome { get; private set; }
@@ -52,17 +59,21 @@ namespace TG_LP1
         }
     }
 
+    // Representa um doente registado no sistema.
+    // Contém informações pessoais e tipo de doença; visitas autorizadas são mantidas numa lista.
     public class Doente : Pessoa
     {
-        // Identificadores / chave simplificada
+        // Numero: id interno sequencial usado apenas no runtime.
+        // NIF: chave de negócio única — usada para identificar e evitar duplicações.
+        // Identificadores 
         public int Numero { get; private set; }
         public string NIF { get; private set; }
         public string TipologiaNecessaria { get; private set; } // "UC","UMDR","ULDM","EDCCI"
         public string OrigemReferencia { get; private set; }
         public string TipoDoenca { get; private set; }
-        private List<Visitante> autorizados = new List<Visitante>();
+        private List<Visitante> _autorizados = new List<Visitante>();
 
-        public IReadOnlyList<Visitante> Autorizados => autorizados.AsReadOnly();
+        public IReadOnlyList<Visitante> Autorizados => _autorizados.AsReadOnly();
 
         public Doente(int numero, string nome, int idade, string nif, string tipologia, string origem, string tipoDoenca)
             : base(nome, idade)
@@ -76,16 +87,18 @@ namespace TG_LP1
 
         public void AutorizarVisitante(string nome, string relacao)
         {
+            // Evita duplicação de visitantes pelo nome
             if (string.IsNullOrWhiteSpace(nome)) throw new ArgumentException("Nome do visitante inválido.");
-            if (!autorizados.Any(v => v.Nome == nome))
+            if (!_autorizados.Any(v => v.Nome == nome))
             {
-                autorizados.Add(new Visitante(nome, relacao));
+                _autorizados.Add(new Visitante(nome, relacao));
             }
         }
 
         public void RevogarVisitante(string nome)
         {
-            autorizados.RemoveAll(v => v.Nome == nome);
+            // Remove todos os visitantes com o nome fornecido (simples correspondência por nome)
+            _autorizados.RemoveAll(v => v.Nome == nome);
         }
 
         public void AtualizarDados(string nome, int idade, string tipoDoenca)
@@ -103,6 +116,7 @@ namespace TG_LP1
 
     public class Cama
     {
+        // Cama: pequena entidade de valor que guarda estado de ocupação e referência ao doente.
         public int Numero { get; private set; }
         public bool Ocupada { get; private set; }
         public Doente DoenteAtual { get; private set; }
@@ -129,6 +143,8 @@ namespace TG_LP1
 
     public abstract class Unidade
     {
+        // Unidade: representa uma unidade da rede com uma coleção de camas.
+        // Zona deve ser um dos valores definidos em GestaoDados.Zonas.
         public string Nome { get; protected set; }
         public string Zona { get; protected set; } // "Norte","Centro","Sul"
         protected List<Cama> Camas;
@@ -153,14 +169,18 @@ namespace TG_LP1
 
         public int AdmitirDoente(Doente d)
         {
+            // Admitir primeiro doente na primeira cama livre (estratégia simples "first fit")
             Cama cama = Camas.FirstOrDefault(c => !c.Ocupada);
             if (cama == null) throw new Exception("Sem camas livres.");
             cama.Ocupar(d);
             return cama.Numero;
         }
+        // Nota: este método assume que o chamador já validou que o doente não está internado.
+        // Use GestaoDados.AdmitirDoenteEmUnidade para uma verificação centralizada antes de admitir.
 
         public int? LibertarCamaDoente(string nif)
         {
+            // Procura a cama ocupada pelo NIF e a liberta, devolvendo o número (ou null se não existir)
             Cama c = Camas.FirstOrDefault(x => x.Ocupada && x.DoenteAtual.NIF == nif);
             if (c == null) return null;
             int num = c.Numero;
@@ -178,6 +198,7 @@ namespace TG_LP1
 
         public bool ContemDoente(string nif)
         {
+            // True se alguma cama contém o doente com o NIF
             return Camas.Any(c => c.Ocupada && c.DoenteAtual.NIF == nif);
         }
 
@@ -195,6 +216,7 @@ namespace TG_LP1
         }
     }
 
+    // Subclasses de Unidade mantêm apenas a tipologia; a lógica de camas é herdada.
     public class UC : Unidade
     {
         public UC(string nome, string zona, int camas) : base(nome, zona, camas) { }
@@ -224,6 +246,8 @@ namespace TG_LP1
     // =====================================================
     // INTERFACES (IGestao genérica)
     // =====================================================
+    // IGestao<T> - contrato mínimo para gestores (Inserir/Atualizar/Remover/Consultar/Obter).
+    // Permite trocar implementações (ex.: usar GestaoDados ou um mock em testes).
     public interface IGestao<T>
     {
         void Inserir(T item);
@@ -236,40 +260,50 @@ namespace TG_LP1
     // =====================================================
     // GESTAO CENTRAL (GestaoDados) - encapsula listas e operações CRUD
     // =====================================================
+    // GestaoDados: repositório em memória. Se precisares de persistência, este é o local para ligar I/O.
+    // Observação: não é thread-safe; em ambiente concorrente adicionar locking (ex.: lock por NIF).
     public static class GestaoDados
     {
         // arrays / listas
         public static readonly string[] Zonas = new string[] { "Norte", "Centro", "Sul" };
 
-        private static readonly List<Doente> doentes = new List<Doente>();
-        private static readonly List<Unidade> unidades = new List<Unidade>();
-        private static readonly List<string> tipologias = new List<string>() { "UC", "UMDR", "ULDM", "EDCCI" };
-        private static int proximoNumeroDoente = 1;
+        private static readonly List<Doente> _doentes = new List<Doente>();
+        private static readonly List<Unidade> _unidades = new List<Unidade>();
+        private static readonly List<string> _tipologias = new List<string>() { "UC", "UMDR", "ULDM", "EDCCI" };
+        private static int _proximoNumeroDoente = 1;
 
         // Exposição controlada (somente leitura)
-        public static IReadOnlyList<string> Tipologias => tipologias.AsReadOnly();
-        public static IEnumerable<Doente> ObterDoentes() { return doentes.AsReadOnly(); }
-        public static IEnumerable<Unidade> ObterUnidades() { return unidades.AsReadOnly(); }
+        public static IReadOnlyList<string> Tipologias => _tipologias.AsReadOnly();
+        public static IEnumerable<Doente> ObterDoentes() { return _doentes.AsReadOnly(); }
+        public static IEnumerable<Unidade> ObterUnidades() { return _unidades.AsReadOnly(); }
 
         // =========================
         // DOENTES CRUD
         // =========================
+        // Cria um novo doente e adiciona ao repositório em memória.
+        // Validações importantes:
+        // - NIF é obrigatório
+        // - NIF deve ser único (lança exceção se já existir)
         public static Doente CriarDoente(string nome, int idade, string nif, string tipologia, string origem, string tipoDoenca)
         {
             if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF obrigatório.");
-            if (doentes.Any(x => x.NIF == nif)) throw new Exception("NIF já registado.");
+            if (_doentes.Any(x => x.NIF == nif)) throw new Exception("NIF já registado.");
 
-            Doente d = new Doente(proximoNumeroDoente, nome, idade, nif, tipologia, origem, tipoDoenca);
-            proximoNumeroDoente++;
-            doentes.Add(d);
+            Doente d = new Doente(_proximoNumeroDoente, nome, idade, nif, tipologia, origem, tipoDoenca);
+            _proximoNumeroDoente++;
+            _doentes.Add(d);
             return d;
         }
 
+        // ObterDoentePorNIF: procura linear em memória — suficiente para protótipo.
+        // Para grandes volumes considerar dicionário indexado por NIF.
         public static Doente ObterDoentePorNIF(string nif)
         {
-            return doentes.FirstOrDefault(d => d.NIF == nif);
+            return _doentes.FirstOrDefault(d => d.NIF == nif);
         }
 
+        // Atualiza um doente encontrado por NIF aplicando a função 'atualizador'.
+        // Lança EntidadeNaoEncontradaException se não existir.
         public static void AtualizarDoente(string nif, Action<Doente> atualizador)
         {
             Doente d = ObterDoentePorNIF(nif);
@@ -277,32 +311,37 @@ namespace TG_LP1
             atualizador(d);
         }
 
+        // Remove doente por NIF, mas apenas se não estiver internado (invariante de integridade).
         public static void RemoverDoente(string nif)
         {
             Doente d = ObterDoentePorNIF(nif);
             if (d == null) throw new EntidadeNaoEncontradaException("Doente não encontrado.");
 
-            Unidade u = unidades.FirstOrDefault(x => x.ContemDoente(nif));
+            Unidade u = _unidades.FirstOrDefault(x => x.ContemDoente(nif));
             if (u != null) throw new DoenteInternadoException("Doente internado. Fazer alta antes de remover.");
 
-            doentes.RemoveAll(x => x.NIF == nif);
+            _doentes.RemoveAll(x => x.NIF == nif);
         }
 
         // =========================
         // UNIDADES CRUD
         // =========================
+        // Insere uma nova unidade (valida nome único)
         public static void InserirUnidade(Unidade u)
         {
             if (u == null) throw new ArgumentNullException(nameof(u));
-            if (unidades.Any(x => x.Nome == u.Nome)) throw new Exception("Unidade já existente.");
-            unidades.Add(u);
+            if (_unidades.Any(x => x.Nome == u.Nome)) throw new Exception("Unidade já existente.");
+            _unidades.Add(u);
         }
 
+        // ObterUnidadePorNome: procura exata por nome. Retorna null se não encontrada.
         public static Unidade ObterUnidadePorNome(string nome)
         {
-            return unidades.FirstOrDefault(u => u.Nome == nome);
+            return _unidades.FirstOrDefault(u => u.Nome == nome);
         }
 
+        // AtualizarUnidade: aplica atualizador na unidade encontrada.
+        // Atenção: as propriedades de Unidade têm set protected, a UI recria a unidade ao atualizar.
         public static void AtualizarUnidade(string nome, Action<Unidade> atualizador)
         {
             Unidade u = ObterUnidadePorNome(nome);
@@ -310,22 +349,24 @@ namespace TG_LP1
             atualizador(u);
         }
 
+        // RemoverUnidade: só remove se não tiver doentes internados para manter integridade dos dados.
         public static void RemoverUnidade(string nome)
         {
             Unidade u = ObterUnidadePorNome(nome);
             if (u == null) throw new EntidadeNaoEncontradaException("Unidade não encontrada.");
             if (u.ConsultarDoentes().Any()) throw new UnidadeComDoentesException("Unidade tem doentes internados.");
-            unidades.RemoveAll(x => x.Nome == nome);
+            _unidades.RemoveAll(x => x.Nome == nome);
         }
 
         // Admitir doente numa unidade verificando primeiro se já está internado
+        // Garante que um NIF só esteja internado numa unidade de cada vez.
         public static int AdmitirDoenteEmUnidade(Unidade u, Doente d)
         {
             if (u == null) throw new ArgumentNullException(nameof(u));
             if (d == null) throw new ArgumentNullException(nameof(d));
 
             // Verifica se o doente já está internado em qualquer unidade
-            if (unidades.Any(x => x.ContemDoente(d.NIF)))
+            if (_unidades.Any(x => x.ContemDoente(d.NIF)))
                 throw new Exception("Doente já internado. Não é possível admitir novamente.");
 
             return u.AdmitirDoente(d);
@@ -334,23 +375,26 @@ namespace TG_LP1
         // =========================
         // TIPOLOGIAS
         // =========================
+        // Insere uma nova tipologia (ex.: UC, UMDR). Valida que não esteja duplicada.
         public static void InserirTipologia(string t)
         {
             if (string.IsNullOrWhiteSpace(t)) throw new ArgumentException("Tipologia inválida.");
-            if (tipologias.Contains(t)) throw new Exception("Tipologia já existe.");
-            tipologias.Add(t);
+            if (_tipologias.Contains(t)) throw new Exception("Tipologia já existe.");
+            _tipologias.Add(t);
         }
 
+        // Remove uma tipologia existente.
         public static void RemoverTipologia(string t)
         {
-            if (!tipologias.Contains(t)) throw new EntidadeNaoEncontradaException("Tipologia não encontrada.");
-            tipologias.RemoveAll(x => x == t);
+            if (!_tipologias.Contains(t)) throw new EntidadeNaoEncontradaException("Tipologia não encontrada.");
+            _tipologias.RemoveAll(x => x == t);
         }
     }
 
     // =====================================================
     // MANAGERS (implementam IGestao<T>) - demonstram interfaces e polimorfismo
     // =====================================================
+    // Classes adaptadoras que usam GestaoDados (simples wrappers) — útil para testes ou injeção futura.
     public class GestorDoentes : IGestao<Doente>
     {
         public void Inserir(Doente item)
@@ -385,6 +429,7 @@ namespace TG_LP1
         }
     }
 
+    // Gestor para operações com unidades (wrapper sobre GestaoDados). Comentários evitam duplicar a lógica aqui.
     public class GestorUnidades : IGestao<Unidade>
     {
         public void Inserir(Unidade item)
@@ -418,11 +463,12 @@ namespace TG_LP1
     }
 
     // =====================================================
-    // Compatibilidade com o menu existente:
-    // Mensagem simples para abrir o menu de gestão de entidades já implementado
+    // UI: GestaoEntidades — menus e prompts que usam GestaoDados
+    // Nota: a UI faz validações básicas; regras de integridade mais fortes estão em GestaoDados.
     // =====================================================
     public static class GestaoEntidades
     {
+        // UI/Console: menus e prompts. A lógica de domínio fica em GestaoDados.
         public static void MostrarMenu()
         {
             int opcao;
@@ -1003,6 +1049,7 @@ namespace TG_LP1
 
         private static int LerIntPositivo()
         {
+            // Lê um inteiro e força ser positivo; usado tipicamente para idades/camas
             int val = LerInt();
             while (val <= 0)
             {
@@ -1033,6 +1080,7 @@ namespace TG_LP1
 
         private static int LerIntAllowEmpty(int valorAtual)
         {
+            // Permite ao utilizador deixar em branco para manter valor atual (usado em updates)
             string s = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(s)) return valorAtual;
             int v;
@@ -1040,4 +1088,4 @@ namespace TG_LP1
             return valorAtual;
         }
     }
-}
+ }

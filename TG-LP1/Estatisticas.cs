@@ -1,4 +1,6 @@
-﻿using System;
+﻿// Estatisticas.cs - Funções para gerar estatísticas simples a partir dos dados (visitas por doença/unidade)
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -69,6 +71,7 @@ namespace TG_LP1
 
             foreach (var d in doentes)
             {
+                // Número de visitantes autorizados é usado como proxy de "visitas" registadas
                 int nVisitas = d.Autorizados.Count; // número de visitantes autorizados
                 if (!visitasPorDoenca.ContainsKey(d.TipoDoenca))
                     visitasPorDoenca[d.TipoDoenca] = 0;
@@ -117,6 +120,7 @@ namespace TG_LP1
                 // percorrer doentes da unidade
                 foreach (var doente in u.ConsultarDoentes())
                 {
+                    // Soma os visitantes autorizados de cada doente para obter total de visitas
                     nVisitas += doente.Autorizados.Count;
                 }
 

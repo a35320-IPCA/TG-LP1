@@ -1,4 +1,9 @@
-﻿using System;
+﻿// Relatorios.cs - Relatórios agregados (ocupação por zona e relatório global)
+// Este módulo contém a classe Relatorios responsável por apresentar
+// relatórios sobre a ocupação das unidades de saúde por zona
+// (Norte, Centro, Sul) e um relatório global da RNCCI.
+
+using System;
 using System.Linq;
 
 namespace TG_LP1
@@ -63,6 +68,7 @@ namespace TG_LP1
                 int camasTotais = unidades.Sum(u => u.ConsultarDoentes().Count() + u.CamasDisponiveis());
                 int camasOcupadas = unidades.Sum(u => u.ConsultarDoentes().Count());
 
+                // Imprime resumo por zona (case-insensitive), agrupando unidades e camas
                 Console.WriteLine($"Zona: {zona}");
                 Console.WriteLine($"  Unidades: {unidades.Count}");
                 Console.WriteLine($"  Camas ocupadas: {camasOcupadas} / {camasTotais}");

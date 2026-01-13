@@ -1,6 +1,10 @@
-﻿using System;
+﻿// ConsultasListagens.cs - Menu e funções para listar doentes por unidade/tipologia e camas disponíveis.
+// Este ficheiro contém a classe ConsultasListagens, responsável por apresentar o menu de consultas e listagens
+// e implementar as funções para listar doentes por unidade, por tipologia de resposta, listar camas disponíveis
+// por unidade e uma listagem geral da RNCCI.
+
+using System;
 using System.Linq;
-using System.Collections.Generic;
 
 namespace TG_LP1
 {
@@ -71,6 +75,7 @@ namespace TG_LP1
             {
                 Console.WriteLine($"\nUnidade: {u.Nome} ({u.GetTipologia()})");
 
+                // Agrupa por NIF antes de imprimir para evitar duplicados (mesmo doente em várias camas/entradas)
                 var doentes = u.ConsultarDoentes()
                     .GroupBy(d => d.NIF)
                     .Select(g => g.First())

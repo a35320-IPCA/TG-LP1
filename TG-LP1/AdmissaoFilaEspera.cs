@@ -1,4 +1,9 @@
-﻿using System;
+﻿// AdmissaoFilaEspera.cs - Gestão da fila de espera, atribuição automática de unidades e gestão de visitantes autorizados.
+// Este ficheiro contém as classes e métodos necessários para gerir o processo de admissão de doentes,
+// incluindo a gestão da fila de espera, a atribuição automática de unidades com base na tipologia necessária,
+// e a gestão de visitantes autorizados para cada doente.
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -29,31 +34,33 @@ namespace TG_LP1
     // =====================================================
     public static class GestaoFilaEspera
     {
-        private static readonly Queue<PedidoAdmissao> fila = new Queue<PedidoAdmissao>();
+        private static readonly Queue<PedidoAdmissao> _fila = new Queue<PedidoAdmissao>();
 
         public static void AdicionarPedido(Doente d)
         {
-            if (fila.Any(p => p.Doente.NIF == d.NIF))
+            if (_fila.Any(p => p.Doente.NIF == d.NIF))
                 throw new Exception("Doente já se encontra em fila de espera.");
 
-            fila.Enqueue(new PedidoAdmissao(d));
+            _fila.Enqueue(new PedidoAdmissao(d));
         }
 
         public static PedidoAdmissao ProximoPedido()
         {
-            return fila.Any() ? fila.Peek() : null;
+            // Retorna o próximo pedido sem o remover (peek) — usado para atribuição automática
+            return _fila.Any() ? _fila.Peek() : null;
         }
 
         public static void RemoverPedido()
         {
-            if (fila.Any())
-                fila.Dequeue();
+            // Remove o pedido no topo da fila (dequeue) quando já foi processado
+            if (_fila.Any())
+                _fila.Dequeue();
         }
 
         // devolve snapshot para evitar exposição da coleção interna
         public static IEnumerable<PedidoAdmissao> Consultar()
         {
-            return fila.ToList();
+            return _fila.ToList();
         }
     }
 
