@@ -1,10 +1,4 @@
-﻿// DoenteMovimentos.cs - Registos de movimentos (admissão/alta/transferência) e menu para extratos.
-// Este ficheiro contém a definição da classe MovimentoDoente, que representa um movimento de um doente
-// entre unidades e camas, bem como a classe GestaoMovimentos, que gere o histórico desses movimentos.
-// Por fim, a classe DoentesMovimentos apresenta o menu para o utilizador interagir com o sistema de
-// registo de movimentos.
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -13,6 +7,8 @@ namespace TG_LP1
     // =====================================================
     // ENUM TIPO DE MOVIMENTO
     // =====================================================
+    // Enumeração que representa os tipos possíveis
+    // de movimentos de um doente no sistema.
     public enum TipoMovimento
     {
         Admissao,
@@ -21,8 +17,10 @@ namespace TG_LP1
     }
 
     // =====================================================
-    // CLASSE MOVIMENTO
+    // CLASSE MOVIMENTO DOENTE
     // =====================================================
+    // Representa um único registo de movimento de um doente,
+    // incluindo a unidade, a cama, o tipo de movimento e a data.
     public class MovimentoDoente
     {
         public string NIFDoente { get; }
@@ -31,18 +29,20 @@ namespace TG_LP1
         public TipoMovimento Tipo { get; }
         public DateTime Data { get; }
 
+        // Construtor do movimento
         public MovimentoDoente(string nif, string unidade, int? cama, TipoMovimento tipo)
         {
             NIFDoente = nif;
             Unidade = unidade;
             Cama = cama;
             Tipo = tipo;
-            Data = DateTime.Now;
+            Data = DateTime.Now; // Data/hora automática do registo
         }
 
+        // Representação textual do movimento (para listagens)
         public override string ToString()
         {
-            // Representação simples para listagens: data | tipo | unidade | cama
+            // Se não existir cama (ex.: EDCCI ou situações especiais)
             string camaTxt = Cama.HasValue ? $"Cama {Cama}" : "Sem cama";
             return $"{Data:dd/MM/yyyy HH:mm} | {Tipo} | {Unidade} | {camaTxt}";
         }
@@ -51,26 +51,28 @@ namespace TG_LP1
     // =====================================================
     // GESTÃO DE MOVIMENTOS
     // =====================================================
+    // Classe estática responsável por manter o histórico
+    // de todos os movimentos registados no sistema.
     public static class GestaoMovimentos
     {
+        // Lista interna de movimentos (append-only)
         private static readonly List<MovimentoDoente> movimentos = new List<MovimentoDoente>();
 
-
+        // Regista um novo movimento no histórico
         public static void Registar(MovimentoDoente mov)
         {
-            // Regista um movimento no histórico (append-only)
             movimentos.Add(mov);
         }
 
+        // Obtém o histórico completo de movimentos de um doente
         public static IEnumerable<MovimentoDoente> PorDoente(string nif)
         {
-            // Filtra movimentos por NIF (histórico do paciente)
             return movimentos.Where(m => m.NIFDoente == nif);
         }
 
+        // Obtém o histórico de movimentos associados a uma cama específica
         public static IEnumerable<MovimentoDoente> PorCama(string unidade, int cama)
         {
-            // Filtra movimentos por unidade e número de cama
             return movimentos.Where(m => m.Unidade == unidade && m.Cama == cama);
         }
     }
@@ -78,6 +80,8 @@ namespace TG_LP1
     // =====================================================
     // MENU DOENTES E MOVIMENTOS
     // =====================================================
+    // Classe responsável pela interação com o utilizador
+    // relativamente aos movimentos dos doentes.
     public static class DoentesMovimentos
     {
         public static void MostrarMenu()
@@ -96,6 +100,8 @@ namespace TG_LP1
                 Console.Write("\nOpção: ");
 
                 string input = Console.ReadLine();
+
+                // Validação da opção
                 if (!int.TryParse(input, out opcao))
                 {
                     Console.WriteLine("Opção inválida. Prima qualquer tecla para voltar ao menu.");
@@ -117,6 +123,7 @@ namespace TG_LP1
                 }
                 catch (Exception ex)
                 {
+                    // Tratamento genérico de erros
                     Console.WriteLine($"Erro: {ex.Message}");
                     Console.ReadKey();
                 }
@@ -125,7 +132,7 @@ namespace TG_LP1
         }
 
         // =====================================================
-        // 1 - ADMISSÃO
+        // 1 - REGISTAR ADMISSÃO
         // =====================================================
         private static void RegistarAdmissao()
         {
@@ -134,29 +141,34 @@ namespace TG_LP1
 
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF inválido.");
+            if (string.IsNullOrWhiteSpace(nif))
+                throw new ArgumentException("NIF inválido.");
 
+            // Obter doente pelo NIF
             Doente doente = GestaoDados.ObterDoentePorNIF(nif);
             if (doente == null)
                 throw new Exception("Doente não encontrado.");
 
-            // Impedir admissão duplicada: se já estiver internado, avisar e abortar
+            // Verificação de internamento duplicado
             if (GestaoDados.ObterUnidades().Any(u => u.ContemDoente(nif)))
             {
-                Console.WriteLine("Doente já se encontra internado. Não é possível admitir novamente.");
+                Console.WriteLine("Doente já se encontra internado.");
                 Console.ReadKey();
                 return;
             }
 
+            // Filtra unidades compatíveis com a tipologia do doente
+            // e que tenham camas disponíveis
             List<Unidade> unidadesDisponiveis = GestaoDados.ObterUnidades()
-                .Where(unidade =>
-                    unidade.GetTipologia() == doente.TipologiaNecessaria &&
-                    unidade.TemCamaDisponivel())
+                .Where(u =>
+                    u.GetTipologia() == doente.TipologiaNecessaria &&
+                    u.TemCamaDisponivel())
                 .ToList();
 
             if (!unidadesDisponiveis.Any())
                 throw new Exception("Não existem unidades disponíveis.");
 
+            // Listagem das unidades disponíveis
             for (int i = 0; i < unidadesDisponiveis.Count; i++)
                 Console.WriteLine($"{i + 1} - {unidadesDisponiveis[i].Nome}");
 
@@ -167,9 +179,11 @@ namespace TG_LP1
                 throw new Exception("Opção inválida.");
 
             Unidade unidadeEscolhida = unidadesDisponiveis[idx - 1];
-            // Chama a função central que garante que um NIF só pode estar internado uma vez
+
+            // Admissão centralizada garante que um doente só é internado uma vez
             int cama = GestaoDados.AdmitirDoenteEmUnidade(unidadeEscolhida, doente);
 
+            // Registo do movimento de admissão
             GestaoMovimentos.Registar(
                 new MovimentoDoente(nif, unidadeEscolhida.Nome, cama, TipoMovimento.Admissao));
 
@@ -178,7 +192,7 @@ namespace TG_LP1
         }
 
         // =====================================================
-        // 2 - ALTA
+        // 2 - REGISTAR ALTA
         // =====================================================
         private static void RegistarAlta()
         {
@@ -187,17 +201,20 @@ namespace TG_LP1
 
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF inválido.");
+            if (string.IsNullOrWhiteSpace(nif))
+                throw new ArgumentException("NIF inválido.");
 
+            // Identifica a unidade onde o doente está internado
             Unidade unidadeInternamento = GestaoDados.ObterUnidades()
                 .FirstOrDefault(u => u.ContemDoente(nif));
 
             if (unidadeInternamento == null)
                 throw new Exception("Doente não está internado.");
 
+            // Libertação da cama ocupada
             int? cama = unidadeInternamento.LibertarCamaDoente(nif);
 
-            // Regista alta no histórico com a cama que ficou livre (pode ser null em casos estranhos)
+            // Registo do movimento de alta
             GestaoMovimentos.Registar(
                 new MovimentoDoente(nif, unidadeInternamento.Nome, cama, TipoMovimento.Alta));
 
@@ -206,7 +223,7 @@ namespace TG_LP1
         }
 
         // =====================================================
-        // 3 - TRANSFERÊNCIA
+        // 3 - TRANSFERÊNCIA DE DOENTE
         // =====================================================
         private static void TransferirDoente()
         {
@@ -215,18 +232,21 @@ namespace TG_LP1
 
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF inválido.");
+            if (string.IsNullOrWhiteSpace(nif))
+                throw new ArgumentException("NIF inválido.");
 
             Doente doente = GestaoDados.ObterDoentePorNIF(nif);
             if (doente == null)
                 throw new Exception("Doente não encontrado.");
 
+            // Unidade atual do doente
             Unidade unidadeOrigem = GestaoDados.ObterUnidades()
                 .FirstOrDefault(u => u.ContemDoente(nif));
 
             if (unidadeOrigem == null)
                 throw new Exception("Doente não está internado.");
 
+            // Unidades destino compatíveis
             List<Unidade> unidadesDestino = GestaoDados.ObterUnidades()
                 .Where(u =>
                     u != unidadeOrigem &&
@@ -246,12 +266,13 @@ namespace TG_LP1
                 idx < 1 || idx > unidadesDestino.Count)
                 throw new Exception("Opção inválida.");
 
-            // Primeiro libertamos a cama de origem e depois admitimos no destino.
-            // Nota: isto pode deixar o doente momentaneamente sem cama se a admissão destino falhar.
+            // Libertação da cama de origem
             int? camaOrigem = unidadeOrigem.LibertarCamaDoente(nif);
+
             Unidade unidadeDestino = unidadesDestino[idx - 1];
             int camaDestino = GestaoDados.AdmitirDoenteEmUnidade(unidadeDestino, doente);
 
+            // Registos de transferência (origem e destino)
             GestaoMovimentos.Registar(
                 new MovimentoDoente(nif, unidadeOrigem.Nome, camaOrigem, TipoMovimento.Transferencia));
 
@@ -263,7 +284,7 @@ namespace TG_LP1
         }
 
         // =====================================================
-        // 4 - EXTRATO POR DOENTE
+        // 4 - EXTRATO DE MOVIMENTOS POR DOENTE
         // =====================================================
         private static void ExtratoPorDoente()
         {
@@ -272,7 +293,8 @@ namespace TG_LP1
 
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF inválido.");
+            if (string.IsNullOrWhiteSpace(nif))
+                throw new ArgumentException("NIF inválido.");
 
             var lista = GestaoMovimentos.PorDoente(nif).ToList();
 
@@ -285,36 +307,41 @@ namespace TG_LP1
         }
 
         // =====================================================
-        // 5 - EXTRATO POR CAMA
+        // 5 - EXTRATO DE MOVIMENTOS POR CAMA
         // =====================================================
         private static void ExtratoPorCama()
         {
             Console.Clear();
             Console.WriteLine("=== Extrato de Movimentos por Cama ===");
 
-            // Agora procuramos pelo NIF do doente e determinamos a unidade + cama automaticamente
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(nif)) throw new ArgumentException("NIF inválido.");
+            if (string.IsNullOrWhiteSpace(nif))
+                throw new ArgumentException("NIF inválido.");
 
-            // localizar unidade onde o doente está internado
-            Unidade unidadeInternamento = GestaoDados.ObterUnidades().FirstOrDefault(u => u.ContemDoente(nif));
+            // Determina automaticamente a unidade do doente
+            Unidade unidadeInternamento = GestaoDados.ObterUnidades()
+                .FirstOrDefault(u => u.ContemDoente(nif));
+
             if (unidadeInternamento == null)
             {
-                Console.WriteLine("Doente não está internado em nenhuma unidade.");
+                Console.WriteLine("Doente não está internado.");
                 Console.ReadKey();
                 return;
             }
 
+            // Obtém o número da cama ocupada pelo doente
             int? camaNum = unidadeInternamento.ObterNumeroCamaDoente(nif);
             if (!camaNum.HasValue)
             {
-                Console.WriteLine("Não foi possível determinar a cama do doente.");
+                Console.WriteLine("Não foi possível determinar a cama.");
                 Console.ReadKey();
                 return;
             }
 
-            var lista = GestaoMovimentos.PorCama(unidadeInternamento.Nome, camaNum.Value).ToList();
+            var lista = GestaoMovimentos
+                .PorCama(unidadeInternamento.Nome, camaNum.Value)
+                .ToList();
 
             if (!lista.Any())
                 Console.WriteLine("Sem movimentos para esta cama.");

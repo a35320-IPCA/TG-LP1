@@ -8,6 +8,8 @@ namespace TG_LP1
 {
     public static class Estatisticas
     {
+        // Mostra o menu de estatísticas de visitas e encaminha para a opção escolhida.
+        // Nota: estas estatísticas são aproximadas, usando o nº de visitantes autorizados como proxy de "visitas".
         public static void MostrarMenu()
         {
             int opcao;
@@ -86,6 +88,7 @@ namespace TG_LP1
             }
             else
             {
+                // Calcula a percentagem de visitas de cada tipo de doença em relação ao total
                 foreach (var kv in visitasPorDoenca)
                 {
                     double percent = (kv.Value / (double)totalVisitas) * 100;
@@ -117,10 +120,10 @@ namespace TG_LP1
             {
                 int nVisitas = 0;
 
-                // percorrer doentes da unidade
+                // Percorre todos os doentes internados na unidade
                 foreach (var doente in u.ConsultarDoentes())
                 {
-                    // Soma os visitantes autorizados de cada doente para obter total de visitas
+                    // Soma os visitantes autorizados de cada doente para obter total de visitas da unidade
                     nVisitas += doente.Autorizados.Count;
                 }
 

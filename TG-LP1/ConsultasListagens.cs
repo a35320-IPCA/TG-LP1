@@ -1,9 +1,4 @@
-﻿// ConsultasListagens.cs - Menu e funções para listar doentes por unidade/tipologia e camas disponíveis.
-// Este ficheiro contém a classe ConsultasListagens, responsável por apresentar o menu de consultas e listagens
-// e implementar as funções para listar doentes por unidade, por tipologia de resposta, listar camas disponíveis
-// por unidade e uma listagem geral da RNCCI.
-
-using System;
+﻿using System;
 using System.Linq;
 
 namespace TG_LP1
@@ -11,8 +6,11 @@ namespace TG_LP1
     // =====================================================
     // MENU CONSULTAS E LISTAGENS
     // =====================================================
+    // Classe estática responsável pelas consultas e listagens
+    // de informação do sistema RNCCI.
     public static class ConsultasListagens
     {
+        // Menu principal de consultas
         public static void MostrarMenu()
         {
             int opcao;
@@ -28,6 +26,8 @@ namespace TG_LP1
                 Console.Write("\nOpção: ");
 
                 string input = Console.ReadLine();
+
+                // Validação da opção introduzida
                 if (!int.TryParse(input, out opcao))
                 {
                     Console.WriteLine("Opção inválida. Prima qualquer tecla para voltar ao menu.");
@@ -48,6 +48,7 @@ namespace TG_LP1
                 }
                 catch (Exception ex)
                 {
+                    // Tratamento genérico de erros
                     Console.WriteLine($"Erro: {ex.Message}");
                     Console.ReadKey();
                 }
@@ -56,13 +57,14 @@ namespace TG_LP1
         }
 
         // =====================================================
-        // 1 - DOENTES POR UNIDADE
+        // 1 - LISTAR DOENTES POR UNIDADE
         // =====================================================
         private static void ListarDoentesPorUnidade()
         {
             Console.Clear();
             Console.WriteLine("=== Doentes por Unidade ===");
 
+            // Obtém todas as unidades registadas
             var unidades = GestaoDados.ObterUnidades().ToList();
             if (!unidades.Any())
             {
@@ -71,15 +73,18 @@ namespace TG_LP1
                 return;
             }
 
+            // Percorre cada unidade e lista os respetivos doentes
             foreach (var u in unidades)
             {
                 Console.WriteLine($"\nUnidade: {u.Nome} ({u.GetTipologia()})");
 
-                // Agrupa por NIF antes de imprimir para evitar duplicados (mesmo doente em várias camas/entradas)
+                // Agrupa por NIF para evitar listagens duplicadas
+                // (garante que cada doente aparece apenas uma vez)
                 var doentes = u.ConsultarDoentes()
                     .GroupBy(d => d.NIF)
                     .Select(g => g.First())
                     .ToList();
+
                 if (!doentes.Any())
                 {
                     Console.WriteLine("  Sem doentes internados.");
@@ -95,17 +100,19 @@ namespace TG_LP1
         }
 
         // =====================================================
-        // 2 - DOENTES POR TIPOLOGIA
+        // 2 - LISTAR DOENTES POR TIPOLOGIA
         // =====================================================
         private static void ListarDoentesPorTipologia()
         {
             Console.Clear();
             Console.WriteLine("=== Doentes por Tipologia ===");
 
+            // Percorre todas as tipologias existentes
             foreach (var tip in GestaoDados.Tipologias)
             {
                 Console.WriteLine($"\nTipologia: {tip}");
 
+                // Filtra doentes de acordo com a tipologia necessária
                 var doentes = GestaoDados.ObterDoentes()
                     .Where(d => d.TipologiaNecessaria == tip)
                     .ToList();
@@ -125,7 +132,7 @@ namespace TG_LP1
         }
 
         // =====================================================
-        // 3 - CAMAS DISPONÍVEIS
+        // 3 - LISTAR CAMAS DISPONÍVEIS POR UNIDADE
         // =====================================================
         private static void ListarCamasDisponiveis()
         {
@@ -139,6 +146,7 @@ namespace TG_LP1
             }
             else
             {
+                // Mostra, para cada unidade, o número de camas livres
                 foreach (var u in unidades)
                 {
                     Console.WriteLine(
@@ -150,7 +158,7 @@ namespace TG_LP1
         }
 
         // =====================================================
-        // 4 - LISTAGEM GERAL RNCCI
+        // 4 - LISTAGEM GERAL DA RNCCI
         // =====================================================
         private static void ListagemGeral()
         {
@@ -160,6 +168,7 @@ namespace TG_LP1
             var unidades = GestaoDados.ObterUnidades().ToList();
             var doentes = GestaoDados.ObterDoentes().ToList();
 
+            // Listagem de unidades
             Console.WriteLine("\n--- UNIDADES ---");
             if (!unidades.Any())
             {
@@ -174,6 +183,7 @@ namespace TG_LP1
                 }
             }
 
+            // Listagem de doentes
             Console.WriteLine("\n--- DOENTES ---");
             if (!doentes.Any())
             {

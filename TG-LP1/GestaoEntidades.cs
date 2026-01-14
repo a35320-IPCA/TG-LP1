@@ -570,11 +570,14 @@ namespace TG_LP1
 
         private static void InserirDoente()
         {
+            // Menu de inserção de doente: recolhe dados básicos, valida NIF/tipologia/zona e envia para GestaoDados
             Console.Clear();
             Console.WriteLine("=== Inserir Doente ===");
+            // Nome e tipo de doença usam LerLetras para garantir apenas letras/espaços
             string nome = LerLetras("Nome: ");
             Console.Write("Idade: ");
             int idade = LerIntPositivo();
+            // NIF: leitura manual com validação de vazio e duplicado, porque é a chave principal dos doentes
             string nif;
             while (true)
             {
@@ -593,6 +596,7 @@ namespace TG_LP1
                 break;
             }
 
+            // Escolha da tipologia a partir da lista centralizada em GestaoDados
             Console.WriteLine("Tipologias disponíveis:");
             for (int i = 0; i < GestaoDados.Tipologias.Count; i++)
             {
@@ -602,6 +606,7 @@ namespace TG_LP1
             int index = LerInt();
             string tipologia = (index >= 1 && index <= GestaoDados.Tipologias.Count) ? GestaoDados.Tipologias[index - 1] : GestaoDados.Tipologias.First();
 
+            // Origem/zona usa array GestaoDados.Zonas para evitar strings mágicas dispersas
             string origem;
             while (true)
             {
@@ -633,6 +638,7 @@ namespace TG_LP1
             Console.WriteLine("=== Atualizar Doente ===");
             Console.Write("NIF do doente: ");
             string nif = Console.ReadLine();
+            // A procura é feita na lista em memória, usando o NIF como chave de negócio
             Doente d = GestaoDados.ObterDoentes().FirstOrDefault(x => x.NIF == nif);
             if (d == null)
             {
@@ -663,6 +669,7 @@ namespace TG_LP1
             }
             else
             {
+                // Usa o método Mostrar do próprio Doente para centralizar o formato de apresentação
                 foreach (var d in lista)
                 {
                     d.Mostrar();
@@ -679,6 +686,7 @@ namespace TG_LP1
             string nif = Console.ReadLine();
             try
             {
+                // GestaoDados garante regra: não remover se estiver internado
                 GestaoDados.RemoverDoente(nif);
                 Console.WriteLine("Doente removido.");
             }
